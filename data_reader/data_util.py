@@ -13,28 +13,28 @@ from tensorflow.contrib.data import Dataset, Iterator
 
 global image_height
 global image_width
-image_height=image_width=227
+image_height = image_width = 227
 #Input parser that reads one image at a time, transforms it from RGB TO BGR#
 #And substracts it with the training dataset mean
 def input_parser(img_path,labels):
+
     img_file=tf.read_file(img_path)
-    #img_decoded = tf.image.decode_png(img_file, channels=3)
     img_decoded=tf.image.decode_jpeg(img_file,channels=3)
     resized_img=tf.image.resize_image_with_crop_or_pad(img_decoded,image_height,image_width)
-    red,green,blue=tf.split(resized_img,num_or_size_splits=3,axis=2)
+    red, green, blue = tf.split(resized_img, num_or_size_splits=3, axis=2)
 
     red= tf.cast(red, tf.float32)
     blue = tf.cast(blue, tf.float32)
     green = tf.cast(green, tf.float32)
 
-    blue_mean_tf=tf.convert_to_tensor(blue_mean,tf.float32)
+    blue_mean_tf=tf.convert_to_tensor(blue_mean, tf.float32)
     green_mean_tf = tf.convert_to_tensor(green_mean, tf.float32)
     red_mean_tf = tf.convert_to_tensor(red_mean, tf.float32)
 
-
-    bgr=tf.concat([tf.subtract(blue,blue_mean_tf),
+    #TODO Why we have axis = 2
+    bgr = tf.concat([tf.subtract(blue,blue_mean_tf),
                    tf.subtract(green,green_mean_tf),
-                   tf.subtract(red,red_mean_tf)],axis=2)
+                   tf.subtract(red,red_mean_tf)], axis=2)
 
     return bgr,labels
 
@@ -74,7 +74,10 @@ def calculate_bgr_channel_mean(files_path, save_path):
         for img_path in images_path:
             # t = time.time()
             image = (imread(img_path)[:, :, :3]).astype(float32)
+
+            #TODO: How is the resize implemented, does this image do center crop?
             image = resize(image, [image_height, image_width, 3])
+
             red_channel = np.add(red_channel, image[:, :, 0])
             green_channel = np.add(green_channel, image[:, :, 1])
             blue_channel = np.add(blue_channel, image[:, :, 2])
@@ -84,14 +87,14 @@ def calculate_bgr_channel_mean(files_path, save_path):
         blue_channel = np.divide(blue_channel, num_images)
         green_channel = np.divide(green_channel, num_images)
 
-        np.savez(save_path, blue_channel=blue_channel, green_channel=green_channel, red_channel=red_channel)
+        np.savez(save_path, blue_channel = blue_channel, green_channel=green_channel, red_channel=red_channel)
 
 def get_bgr_channel_mean(bgr_path):
     file=np.load(bgr_path)
-    red_mean=file['red_channel']
-    blue_mean=file['blue_channel']
+    red_mean = file['red_channel']
+    blue_mean= file['blue_channel']
     green_mean=file['green_channel']
-    return blue_mean,green_mean,red_mean
+    return blue_mean, green_mean, red_mean
 
 
 
