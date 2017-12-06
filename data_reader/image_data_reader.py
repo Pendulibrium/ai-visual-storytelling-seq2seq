@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 import json
+import image_util as image_util
 
 class ImageDataReader:
     def __init__(self, root_directory, mean_path="mean.json", batch_size=64, image_size=(227, 227)):
@@ -34,8 +35,8 @@ class ImageDataReader:
         for i in range(len(current_paths)):
             image = cv2.imread(current_paths[i],1)
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            image = self.resize_in_aspect_to_ration(image)
-            image = self.center_crop_image(image).astype(float)
+            image = image_util.resize_in_aspect_to_ration(image=image,image_size=self.image_size)
+            image = image_util.center_crop_image(image).astype(float)
             print(self.mean.shape)
             image -= self.mean
             cv2.imshow("n",image)
@@ -43,41 +44,6 @@ class ImageDataReader:
             result.append(image)
 
         return result, current_image_ids
-
-
-    # Returns resized image in aspect to ratio
-    def resize_in_aspect_to_ration(self, image):
-        height = image.shape[0]
-        width = image.shape[1]
-        ratio = float(height) / float(width)
-        if ratio > 1:
-            new_width = self.image_size[0]
-            new_height = new_width * ratio
-        else:
-            new_height = self.image_size[1]
-            new_width = new_height / ratio
-
-        dim = (int(new_width), int(new_height))
-        image1 = cv2.resize(image, dim)
-        return image1
-
-    # Returns center cropped image
-    def center_crop_image(self, image):
-        height = image.shape[0]
-        width = image.shape[1]
-
-        if height >= width:
-            center = height / 2
-            left = center - width / 2
-            right = center + width / 2
-            crop_img = image[left:right + 1, 0:width]
-        else:
-            center = width / 2
-            left = center - height / 2
-            right = center + height / 2
-            crop_img = image[0:height, left:right + 1]
-
-        return crop_img
 
     def get_bgr_channel_mean(self, mean_path):
         mean = json.load(open(mean_path))
