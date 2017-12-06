@@ -31,10 +31,14 @@ class ImageDataReader:
         self.current_index += self.batch_size
 
         for i in range(len(current_paths)):
-            image = imread(current_paths[i])[:, :, :3]
+            image = cv2.imread(current_paths[i],1)
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             image = self.resize_in_aspect_to_ration(image)
-            image = self.center_crop_image(image)
+            image = self.center_crop_image(image).astype(float)
+            print(self.mean.shape)
             image -= self.mean
+            cv2.imshow("n",image)
+            cv2.waitKey(0)
             result.append(image)
 
         return result, current_image_ids
