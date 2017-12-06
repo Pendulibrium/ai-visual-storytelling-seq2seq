@@ -2,12 +2,13 @@ from glob import glob
 import os
 import cv2
 import numpy as np
-from scipy.misc import imread
+import json
 
 class ImageDataReader:
-    def __init__(self, root_directory, mean = np.array([104., 117., 124.]), batch_size=64, image_size=(227, 227)):
+    def __init__(self, root_directory, mean_path="mean.json", batch_size=64, image_size=(227, 227)):
         self.root_directory = root_directory
-        self.mean = mean
+        self.mean = self.get_bgr_channel_mean(mean_path)
+        self.mean = np.array(self.mean)
         self.batch_size = batch_size
         self.image_size = image_size
         self.image_paths, self.image_ids = self.get_all_filenames(self.root_directory)
@@ -78,44 +79,9 @@ class ImageDataReader:
 
         return crop_img
 
-    # def calculate_bgr_channel_mean(files_path, save_path):
-    #     images_path, _ = get_all_filenames(files_path)
-    #     image = (imread(images_path[0])[:, :, :3]).astype(float32)
-    #     resized_img = resize_in_aspect_to_ration(image)
-    #     # returs it to BGR
-    #     croped_img = center_crop_image(resized_img)
-    #
-    #     blue_channel = croped_img[:, :, 0]
-    #     green_channel = croped_img[:, :, 1]
-    #     red_channel = croped_img[:, :, 2]
-    #
-    #     red_mean = np.mean(red_channel)
-    #     blue_mean = np.mean(blue_channel)
-    #     green_mean = np.mean(green_channel)
-    #
-    #     for i in range(len(images_path)):
-    #         if i == 0:
-    #             continue
-    #         t = time.time()
-    #         print(images_path[i])
-    #         image = (imread(images_path[i])[:, :, :3]).astype(float32)
-    #         print(image.shape)
-    #         resized_img = resize_in_aspect_to_ration(image)
-    #         croped_img = center_crop_image(resized_img)
-    #         blue_channel = croped_img[:, :, 0]
-    #         green_channel = croped_img[:, :, 1]
-    #         red_channel = croped_img[:, :, 2]
-    #         red_mean = (red_mean + np.mean(red_channel)) / 2
-    #         blue_mean = (blue_mean + np.mean(blue_channel)) / 2
-    #         green_mean = (green_mean + np.mean(green_channel)) / 2
-    #
-    #         print(time.time() - t)
-    #
-    #     np.savez(save_path, blue_mean=blue_mean, green_mean=green_mean, red_mean=red_mean)
-    #
-    # def get_bgr_channel_mean(bgr_path):
-    #     file = np.load(bgr_path)
-    #     red_mean = file['red_mean']
-    #     blue_mean = file['blue_mean']
-    #     green_mean = file['green_mean']
-    #     return blue_mean, green_mean, red_mean
+    def get_bgr_channel_mean(self, mean_path):
+        mean = json.load(open(mean_path))
+        red_mean = mean['red_mean']
+        blue_mean = mean['blue_mean']
+        green_mean = mean['green_mean']
+        return blue_mean, green_mean, red_mean
