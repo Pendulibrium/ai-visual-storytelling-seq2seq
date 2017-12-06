@@ -26,7 +26,7 @@ def calculate_bgr_channel_mean(root_directory, json_file_path, image_size=(227,2
         for i in range(len(images_path)):
             if i == 0:
                 continue
-
+            print(images_path[i])
             image = cv2.imread(images_path[i])[:, :, :3]
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             image = image_util.resize_in_aspect_to_ration(image=image, image_size=image_size)
@@ -37,6 +37,7 @@ def calculate_bgr_channel_mean(root_directory, json_file_path, image_size=(227,2
             red_mean = (red_mean + np.mean(red_channel)) / 2
             blue_mean = (blue_mean + np.mean(blue_channel)) / 2
             green_mean = (green_mean + np.mean(green_channel)) / 2
+	    
 
         mean={}
         mean["blue_mean"] = blue_mean
