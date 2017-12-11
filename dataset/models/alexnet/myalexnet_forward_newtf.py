@@ -176,39 +176,39 @@ fc7 = tf.nn.relu_layer(fc6, fc7W, fc7b)
 #softmax(name='prob'))
 #prob = tf.nn.softmax(fc8)
 
-image_reader = idr.ImageDataReader(root_directory='../../sample_images',
-                                   mean_path='../../mean.json',batch_size=2)
 
-current_batch, batch_ids = image_reader.next_batch()
-print("Current batch shape: ", current_batch.shape)
+
 init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
 
 
 
-has_elements = len(current_batch)>0
+image_reader = idr.ImageDataReader(root_directory='../../sample_images',
+                                   mean_path='../../mean.json', batch_size = 64)
+
+
 image_embeddings = []
 image_ids = []
 
 t=time.time()
 
-data_file=h5py.File('alexnet_image_features.hdf5','w')
-while has_elements == True:
+data_file = h5py.File('alexnet_image_features.hdf5','w')
+
+while image_reader.has_next_element():
+    current_batch, batch_image_ids = image_reader.next_batch()
     outputs = sess.run(fc7, feed_dict={x: current_batch})
-    for o in outputs:
-        image_embeddings.append(o)
-    image_ids=np.append(image_ids,batch_ids)
-    current_batch, batch_ids = image_reader.next_batch()
-    has_elements = len(current_batch) > 0
-    print(has_elements)
+    image_embeddings = image_embeddings + outputs.tolist()
+    image_ids = image_ids + batch_image_ids.tolist()
 
 print(len(image_embeddings))
 print(len(image_ids))
-for i in range(len(image_ids)):
-#       print(i)
-       data_file.create_dataset(image_ids[i], data=image_embeddings[i].tolist())
+
+data_file.create_dataset("embeddings", data = image_embeddings)
+data_file.create_dataset("image_ids", data = image_ids)
+
 print(time.time()-t)
 
-# f=h5py.File('file.hdf5','r')
-# print("keys: %s" % f.keys())
+#f = h5py.File('alexnet_image_features.hdf5','r')
+#print("keys: %s" % f.keys())
+#print(len(f['embeddings']))
