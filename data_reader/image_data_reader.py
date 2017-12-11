@@ -6,10 +6,10 @@ import json
 import image_util as image_util
 
 class ImageDataReader:
-    def __init__(self, root_directory, mean_path="mean.json", batch_size=64, image_size=(227, 227)):
+    def __init__(self, root_directory, mean_path, batch_size=64, image_size=(227, 227)):
         self.root_directory = root_directory
-        #self.mean = self.get_bgr_channel_mean(mean_path)
-        #self.mean = np.array(self.mean)
+        self.mean = self.get_bgr_channel_mean(mean_path)
+        self.mean = np.array(self.mean)
         self.batch_size = batch_size
         self.image_size = image_size
         self.image_paths, self.image_ids = self.get_all_filenames(self.root_directory)
@@ -17,6 +17,9 @@ class ImageDataReader:
 
     def get_all_filenames(self, root_directory):
         images_path_names = [y for x in os.walk(root_directory) for y in glob(os.path.join(x[0], "*.jpg"))]
+        images_path_names_png = [y for x in os.walk(root_directory) for y in glob(os.path.join(x[0], "*.png"))]
+        images_path_names=np.append(images_path_names,images_path_names_png)
+
         image_index = []
         for i in range(len(images_path_names)):
             name = images_path_names[i].split("/")
@@ -27,6 +30,7 @@ class ImageDataReader:
     def next_batch(self):
 
         result = []
+
         current_paths = self.image_paths[self.current_index:self.current_index + self.batch_size]
         current_image_ids = self.image_ids[self.current_index:self.current_index + self.batch_size]
 
@@ -38,7 +42,7 @@ class ImageDataReader:
             image = image_util.resize_in_aspect_to_ration(image=image,image_size=self.image_size)
             image = image_util.center_crop_image(image).astype(float)
             #print(self.mean.shape)
-            #image -= self.mean
+            image -= self.mean
             #cv2.imshow("n",image)
             #cv2.waitKey(0)
             result.append(image)

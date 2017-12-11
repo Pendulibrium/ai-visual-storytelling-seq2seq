@@ -12,29 +12,19 @@
 ################################################################################
 
 import sys
-sys.path.append('../../../data_reader')
-
-from numpy import *
+sys.path.insert(0,'../../../data_reader/')
 import os
-#from pylab import *
 import numpy as np
-#import matplotlib.pyplot as plt
-#import matplotlib.cbook as cbook
 import time
-from scipy.misc import imread
-from scipy.misc import imresize
-from scipy.ndimage import filters
 import urllib
 from numpy import random
 import image_data_reader as idr
-
-
 import tensorflow as tf
+import h5py
+#from caffe_classes import class_names
 
-from caffe_classes import class_names
-
-train_x = zeros((1, 227,227,3)).astype(float32)
-train_y = zeros((1, 1000))
+train_x = np.zeros((1, 227,227,3)).astype(np.float32)
+train_y = np.zeros((1, 1000))
 xdim = train_x.shape[1:]
 ydim = train_y.shape[1]
 
@@ -42,13 +32,6 @@ ydim = train_y.shape[1]
 
 ################################################################################
 #Read Image, and change to BGR
-
-
-image_reader = idr.ImageDataReader(root_directory='../../sample_images',
-                                   mean_path='../dataset/mean.json')
-
-current_batch, image_ids = image_reader.next_batch()
-print("Current batch shape: ", current_batch.shape)
 
 ################################################################################
 
@@ -68,8 +51,8 @@ print("Current batch shape: ", current_batch.shape)
 #         .softmax(name='prob'))
 
 #In Python 3.5, change this to:
-net_data = load(open("bvlc_alexnet.npy", "rb"), encoding="latin1").item()
-#net_data = load("bvlc_alexnet.npy").item()
+net_data = np.load(open("bvlc_alexnet.npy", "rb"), encoding="latin1").item()
+# #net_data = load("bvlc_alexnet.npy").item()
 
 def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group=1):
     '''From https://github.com/ethereon/caffe-tensorflow
@@ -78,13 +61,13 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group
     assert c_i%group==0
     assert c_o%group==0
     convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
-    
-    
+
+
     if group==1:
         conv = convolve(input, kernel)
     else:
         input_groups =  tf.split(input, group, 3)   #tf.split(3, group, input)
-        kernel_groups = tf.split(kernel, group, 3)  #tf.split(3, group, kernel) 
+        kernel_groups = tf.split(kernel, group, 3)  #tf.split(3, group, kernel)
         output_groups = [convolve(i, k) for i,k in zip(input_groups, kernel_groups)]
         conv = tf.concat(output_groups, 3)          #tf.concat(3, output_groups)
     return  tf.reshape(tf.nn.bias_add(conv, biases), [-1]+conv.get_shape().as_list()[1:])
@@ -136,7 +119,7 @@ lrn2 = tf.nn.local_response_normalization(conv2,
                                                   bias=bias)
 
 #maxpool2
-#max_pool(3, 3, 2, 2, padding='VALID', name='pool2')                                                  
+#max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
 k_h = 3; k_w = 3; s_h = 2; s_w = 2; padding = 'VALID'
 maxpool2 = tf.nn.max_pool(lrn2, ksize=[1, k_h, k_w, 1], strides=[1, s_h, s_w, 1], padding=padding)
 
@@ -174,7 +157,7 @@ maxpool5 = tf.nn.max_pool(conv5, ksize=[1, k_h, k_w, 1], strides=[1, s_h, s_w, 1
 #fc(4096, name='fc6')
 fc6W = tf.Variable(net_data["fc6"][0])
 fc6b = tf.Variable(net_data["fc6"][1])
-fc6 = tf.nn.relu_layer(tf.reshape(maxpool5, [-1, int(prod(maxpool5.get_shape()[1:]))]), fc6W, fc6b)
+fc6 = tf.nn.relu_layer(tf.reshape(maxpool5, [-1, int(np.prod(maxpool5.get_shape()[1:]))]), fc6W, fc6b)
 
 #fc7
 #fc(4096, name='fc7')
@@ -184,30 +167,48 @@ fc7 = tf.nn.relu_layer(fc6, fc7W, fc7b)
 
 #fc8
 #fc(1000, relu=False, name='fc8')
-fc8W = tf.Variable(net_data["fc8"][0])
-fc8b = tf.Variable(net_data["fc8"][1])
-fc8 = tf.nn.xw_plus_b(fc7, fc8W, fc8b)
+# fc8W = tf.Variable(net_data["fc8"][0])
+# fc8b = tf.Variable(net_data["fc8"][1])
+# fc8 = tf.nn.xw_plus_b(fc7, fc8W, fc8b)
 
 
 #prob
 #softmax(name='prob'))
-prob = tf.nn.softmax(fc8)
+#prob = tf.nn.softmax(fc8)
 
-init = tf.initialize_all_variables()
+image_reader = idr.ImageDataReader(root_directory='../../sample_images',
+                                   mean_path='../../mean.json',batch_size=2)
+
+current_batch, batch_ids = image_reader.next_batch()
+print("Current batch shape: ", current_batch.shape)
+init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
 
-t = time.time()
-output = sess.run(prob, feed_dict = {x: current_batch })
-################################################################################
-
-#Output:
 
 
-for input_im_ind in range(output.shape[0]):
-    inds = argsort(output)[input_im_ind,:]
-    print("Image", input_im_ind)
-    for i in range(5):
-        print(class_names[inds[-1-i]], output[input_im_ind, inds[-1-i]])
+has_elements = len(current_batch)>0
+image_embeddings = []
+image_ids = []
 
+t=time.time()
+
+data_file=h5py.File('alexnet_image_features.hdf5','w')
+while has_elements == True:
+    outputs = sess.run(fc7, feed_dict={x: current_batch})
+    for o in outputs:
+        image_embeddings.append(o)
+    image_ids=np.append(image_ids,batch_ids)
+    current_batch, batch_ids = image_reader.next_batch()
+    has_elements = len(current_batch) > 0
+    print(has_elements)
+
+print(len(image_embeddings))
+print(len(image_ids))
+for i in range(len(image_ids)):
+#       print(i)
+       data_file.create_dataset(image_ids[i], data=image_embeddings[i].tolist())
 print(time.time()-t)
+
+# f=h5py.File('file.hdf5','r')
+# print("keys: %s" % f.keys())
