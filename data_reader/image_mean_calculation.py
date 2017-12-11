@@ -10,6 +10,8 @@ image_size = (227,227)
 
 def calculate_bgr_channel_mean(root_directory, json_file_path, image_size=(227,227)):
         images_path = [y for x in os.walk(root_directory) for y in glob(os.path.join(x[0], "*.jpg"))]
+        images_path_png = [y for x in os.walk(root_directory) for y in glob(os.path.join(x[0], "*.png"))]
+        images_path = np.append(images_path, images_path_png)
         image = cv2.imread(images_path[0])[:, :, :3]
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         image = image_util.resize_in_aspect_to_ration(image=image, image_size=image_size)
@@ -26,7 +28,7 @@ def calculate_bgr_channel_mean(root_directory, json_file_path, image_size=(227,2
         for i in range(len(images_path)):
             if i == 0:
                 continue
-            print(images_path[i])
+            
             image = cv2.imread(images_path[i])[:, :, :3]
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             image = image_util.resize_in_aspect_to_ration(image=image, image_size=image_size)
@@ -45,4 +47,3 @@ def calculate_bgr_channel_mean(root_directory, json_file_path, image_size=(227,2
         mean["red_mean"] = red_mean
         with open(json_file_path, 'w') as fp:
             json.dump(mean, fp)
-
