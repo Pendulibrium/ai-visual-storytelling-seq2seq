@@ -45,6 +45,9 @@ class ImageDataReader:
 
         return np.array(result), np.array(current_image_ids)
 
+    def has_next_element(self):
+        return self.current_index < len(self.image_paths)
+
     def get_bgr_channel_mean(self, mean_path):
         mean = json.load(open(mean_path))
         red_mean = mean['red_mean']
