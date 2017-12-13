@@ -15,7 +15,7 @@ class SIS_DataReader:
 
         frequency = {}
         for annotation in annotations:
-            sentence = annotation[0]['text'].split(" ")
+            sentence = annotation[0]['text'].split()
             for word in sentence:
                 #proverka za brishenje na greski so zborovi vo unicode format(latinski zborovi)
                     if any(x.isupper() for x in unidecode(word)) == False:
@@ -31,7 +31,7 @@ class SIS_DataReader:
         data = json.load(open(word_frequency_file))
         return data[0:vocabulary_size]
 
-    def generate_vocabulary(self,vocabulary_file='../dataset/vist2017_vocabulary.json', word_frequency_file='../dataset/word_frequencies.json', vocabulary_size=9000):
+    def generate_vocabulary(self,vocabulary_file='../dataset/vist2017_vocabulary.json', word_frequency_file='../dataset/word_frequencies.json', vocabulary_size=10000):
         data = self.get_n_most_frequent_words(word_frequency_file,vocabulary_size)
         idx_to_words = []
         idx_to_words.append("<NULL>")
@@ -54,13 +54,52 @@ class SIS_DataReader:
         with open(vocabulary_file, 'w') as fp:
             json.dump(vocabulary, fp)
 
+    def get_max_sentence_length(self):
+        data = json.load(open(self.path_to_file))
+        annotations = data['annotations']
+        save_sent = []
+        max_sentence_length = 0
+        for annotation in annotations:
+            sentence = annotation[0]['text'].split()
+            length = len(sentence)
+            if(length > max_sentence_length):
+                max_sentence_length = length
+                save_sent = sentence
+
+        print(save_sent)
+        return max_sentence_length
+
+    def get_min_sentence_length(self):
+        data = json.load(open(self.path_to_file))
+        annotations = data['annotations']
+        save_sent = []
+        min_sentence_length = 100
+        for annotation in annotations:
+            sentence = annotation[0]['text'].split()
+            length = len(sentence)
+            if(length < min_sentence_length):
+                min_sentence_length = length
+                save_sent = sentence
+
+        print(save_sent)
+        return min_sentence_length
+
+    def sentences_to_index(self,vocabulary_file='../dataset/vist2017_vocabulary.json'):
+        #treba da se dopolni koga kje znaeme sto da pravime so maksimumot
+        vocabulary=json.load(open(vocabulary_file))
+        words_to_idx=vocabulary["words_to_idx"]
+
+        data=json.load(open(self.path_to_file))
+        annotations=data["annotations"]
+
+        for i in range(len(annotations)):
+            print(annotations[i][0]["story_id"])
 
 
 
 
 object=SIS_DataReader()
-object.generate_vocabulary()
-
+object.sentences_to_index()
 
 # data = json.load(open('../dataset/word_frequencies.json'))
 # print(type(data))
