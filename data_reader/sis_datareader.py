@@ -3,7 +3,6 @@ import numpy as np
 import operator
 from unidecode import unidecode
 
-
 class SIS_DataReader:
 
     def __init__(self, path_to_file='../dataset/vist_sis/train.story-in-sequence.json'):
@@ -13,18 +12,18 @@ class SIS_DataReader:
 
         data = json.load(open(self.path_to_file))
         annotations = data['annotations']
-        #print(annotations[0][0]['text'])
 
         frequency = {}
         for annotation in annotations:
             sentence = annotation[0]['text'].split(" ")
             for word in sentence:
-                    count = frequency.get(word,0)
-                    frequency[word] = count + 1
+                #proverka za brishenje na greski so zborovi vo unicode format(latinski zborovi)
+                    if any(x.isupper() for x in unidecode(word)) == False:
+                        count = frequency.get(word,0)
+                        frequency[word] = count + 1
 
         sorted_frequency = sorted(frequency.items(),key=operator.itemgetter(1),reverse=True)
 
-        #print(sorted_frequency)
         with open(path_to_json_file, 'w') as fp:
             json.dump(sorted_frequency, fp)
 
@@ -44,12 +43,9 @@ class SIS_DataReader:
 
             idx_to_words.append(element[0])
 
-        #print(idx_to_words)
         words_to_idx={}
         for i in range(len(idx_to_words)):
             words_to_idx[idx_to_words[i]]=i
-
-        #print(word_to_idx)
 
         vocabulary = {}
         vocabulary["idx_to_words"] = idx_to_words

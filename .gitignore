@@ -6,6 +6,7 @@ __pycache__/
 .idea/
 .DS_Store
 vist_dataset/
+dataset/vist_sis/
 # C extensions
 *.so
 
