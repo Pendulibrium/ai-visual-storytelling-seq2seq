@@ -2,6 +2,7 @@ import json
 import numpy as np
 import operator
 from unidecode import unidecode
+import h5py
 
 class SIS_DataReader:
 
@@ -84,58 +85,85 @@ class SIS_DataReader:
         print(save_sent)
         return min_sentence_length
 
-    def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json'):
-        #treba da se dopolni koga kje znaeme sto da pravime so maksimumot
+    def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json',max_length=20):
+
         vocabulary = json.load(open(vocabulary_file))
         words_to_idx = vocabulary["words_to_idx"]
 
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
-        #print(annotations[0][0].keys())
-        total_length_mean=0.0
-        stories_to_id = {}
+
+        story_ids=[]
+        story_sentences=[]
+
         for i in range(0, len(annotations),5):
             story_id = annotations[i][0]["story_id"]
-            story1, length1 = self.sentences_to_index_helper(annotations[i][0]["text"],words_to_idx)
-            story2, length2 = self.sentences_to_index_helper(annotations[i+1][0]["text"], words_to_idx)
-            story3, length3 = self.sentences_to_index_helper(annotations[i+2][0]["text"], words_to_idx)
-            story4, length4 = self.sentences_to_index_helper(annotations[i+3][0]["text"], words_to_idx)
-            story5, length5 = self.sentences_to_index_helper(annotations[i+4][0]["text"], words_to_idx)
-            stories_to_id[story_id] = [story1, story2, story3, story4, story5]
-            total_length_mean += np.mean([length1, length2, length3, length4, length5])
-            print(np.mean([length1, length2, length3, length4, length5]))
-            #print(annotations[i][0]["worker_arranged_photo_order"],annotations[i+1][0]["worker_arranged_photo_order"],annotations[i+2][0]["worker_arranged_photo_order"],      annotations[i+3][0]["worker_arranged_photo_order"],annotations[i+4][0]["worker_arranged_photo_order"])
+            story1, order1 = self.sentences_to_index_helper(annotations[i][0]["text"], words_to_idx, max_length), annotations[i][0]["worker_arranged_photo_order"]
+            story2, order2 = self.sentences_to_index_helper(annotations[i+1][0]["text"], words_to_idx, max_length), annotations[i+1][0]["worker_arranged_photo_order"]
+            story3, order3 = self.sentences_to_index_helper(annotations[i+2][0]["text"], words_to_idx, max_length), annotations[i+2][0]["worker_arranged_photo_order"]
+            story4, order4 = self.sentences_to_index_helper(annotations[i+3][0]["text"], words_to_idx, max_length), annotations[i+3][0]["worker_arranged_photo_order"]
+            story5, order5 = self.sentences_to_index_helper(annotations[i+4][0]["text"], words_to_idx, max_length), annotations[i+4][0]["worker_arranged_photo_order"]
 
-        print(total_length_mean/float(len(annotations)/5.0))
+            story_list = [(story1, order1), (story2, order2),(story3, order3),(story4, order4), (story5, order5)]
+            story_list = sorted(story_list, key=operator.itemgetter(1))
+            ordered_stories=[story_list[0][0], story_list[0][0], story_list[1][0], story_list[2][0], story_list[3][0], story_list[4][0]]
 
-        with open("../dataset/stories_to_id.json", 'w') as fp:
-            json.dump(stories_to_id, fp)
+            story_ids.append(story_id)
+            story_sentences.append(ordered_stories)
+
+        story_ids=list(map(lambda x: int(x),story_ids))
+        data_file = h5py.File('../dataset/stories_to_index.hdf5', 'w')
+        data_file.create_dataset("story_ids", data = story_ids)
+        data_file.create_dataset("story_sentences", data = story_sentences)
 
 
-    #da se dopolni za koga kje znaeme kolku kje bide max-length
-    def sentences_to_index_helper(self,sentence,word_to_idx):
-        sentence="<START> "+sentence+" <END>"
-        words=sentence.split()
-        result_sentence=[]
+    def sentences_to_index_helper(self,sentence,word_to_idx,max_length):
+        words = sentence.split()
+        result_sentence = []
+
         for word in words:
-            if(word_to_idx.has_key(word)):
-                result_sentence.append(word_to_idx[word])
+            if len(result_sentence) == max_length:
+                break
             else:
-                result_sentence.append(word_to_idx["<UNK>"])
+                if(word_to_idx.has_key(word)):
+                    result_sentence.append(word_to_idx[word])
+                else:
+                    result_sentence.append(word_to_idx["<UNK>"])
 
-        return result_sentence, len(result_sentence)
+
+        result_sentence.insert(0,word_to_idx["<START>"])
+        result_sentence.append(word_to_idx["<END>"])
+
+        while len(result_sentence) < max_length+2:
+            result_sentence.append(word_to_idx["<NULL>"])
+
+        return result_sentence
 
     def indecies_to_sentence(self, sentence, idx_to_word):
-        result_sentence=""
+        result_sentence = ""
         for word in sentence:
-            result_sentence=result_sentence+" "+idx_to_word[word]
+            result_sentence = result_sentence+" "+idx_to_word[word]
 
         print(result_sentence)
         return result_sentence
 
-    
-# object=SIS_DataReader()
-# object.sentences_to_index()
+    def map_images_to_stories(self):
+        data = json.load(open(self.path_to_file))
+        annotations = data["annotations"]
+        images = data["images"]
+
+        map_img_to_story=[]
+        for i in range(len(annotations)):
+            map_img_to_story.append([ int(annotations[i][0]["story_id"]), int(annotations[i][0]["photo_flickr_id"])])
+
+        for i in range(0,50):
+            print(map_img_to_story[i])
+        #for annotation in annotations:
+
+
+object=SIS_DataReader()
+object.map_images_to_stories()
+
 
 
 
