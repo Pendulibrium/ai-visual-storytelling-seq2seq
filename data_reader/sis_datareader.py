@@ -93,8 +93,9 @@ class SIS_DataReader:
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
 
-        story_ids=[]
-        story_sentences=[]
+        story_ids = []
+        story_sentences = []
+        story_images = []
 
         for i in range(0, len(annotations),5):
             story_id = annotations[i][0]["story_id"]
@@ -111,10 +112,30 @@ class SIS_DataReader:
             story_ids.append(story_id)
             story_sentences.append(ordered_stories)
 
+            img_id1, order1 = int(annotations[i][0]["photo_flickr_id"]), annotations[i][0][
+                "worker_arranged_photo_order"]
+            img_id2, order2 = int(annotations[i + 1][0]["photo_flickr_id"]), annotations[i + 1][0][
+                "worker_arranged_photo_order"]
+            img_id3, order3 = int(annotations[i + 2][0]["photo_flickr_id"]), annotations[i + 2][0][
+                "worker_arranged_photo_order"]
+            img_id4, order4 = int(annotations[i + 3][0]["photo_flickr_id"]), annotations[i + 3][0][
+                "worker_arranged_photo_order"]
+            img_id5, order5 = int(annotations[i + 4][0]["photo_flickr_id"]), annotations[i + 4][0][
+                "worker_arranged_photo_order"]
+
+            img_list = [(img_id1, order1), (img_id2, order2), (img_id3, order3), (img_id4, order4), (img_id5, order5)]
+            img_list = sorted(img_list, key=operator.itemgetter(1))
+            ordered_images = [img_list[0][0], img_list[0][0], img_list[1][0], img_list[2][0], img_list[3][0],
+                               img_list[4][0]]
+
+            story_images.append(ordered_images)
+
+
         story_ids=list(map(lambda x: int(x),story_ids))
         data_file = h5py.File('../dataset/stories_to_index.hdf5', 'w')
         data_file.create_dataset("story_ids", data = story_ids)
         data_file.create_dataset("story_sentences", data = story_sentences)
+        data_file.create_dataset("story_images", data = story_images)
 
 
     def sentences_to_index_helper(self,sentence,word_to_idx,max_length):
@@ -147,22 +168,11 @@ class SIS_DataReader:
         print(result_sentence)
         return result_sentence
 
-    def map_images_to_stories(self):
-        data = json.load(open(self.path_to_file))
-        annotations = data["annotations"]
-        images = data["images"]
 
-        map_img_to_story=[]
-        for i in range(len(annotations)):
-            map_img_to_story.append([ int(annotations[i][0]["story_id"]), int(annotations[i][0]["photo_flickr_id"])])
-
-        for i in range(0,50):
-            print(map_img_to_story[i])
-        #for annotation in annotations:
 
 
 object=SIS_DataReader()
-object.map_images_to_stories()
+object.sentences_to_index()
 
 
 
