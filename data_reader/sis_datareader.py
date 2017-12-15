@@ -93,7 +93,10 @@ class SIS_DataReader:
         print(save_sent)
         return min_sentence_length
 
-    def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json', max_length=20):
+    def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json',
+                           image_embedding_file="../dataset/alexnet_image_train_features.hdf5",
+                           save_file_path='../dataset/stories_to_index.hdf5',
+                           max_length=20):
 
         vocabulary = json.load(open(vocabulary_file))
         words_to_idx = vocabulary["words_to_idx"]
@@ -101,7 +104,7 @@ class SIS_DataReader:
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
 
-        img_hash = self.get_image_features_hash()
+        img_hash = self.get_image_features_hash(image_embedding_file)
 
         story_ids = []
         story_sentences = []
@@ -171,7 +174,7 @@ class SIS_DataReader:
             story_sentences.append(ordered_stories)
             story_images.append(ordered_images)
 
-        data_file = h5py.File('../dataset/stories_to_index.hdf5', 'w')
+        data_file = h5py.File(save_file_path, 'w')
         data_file.create_dataset("story_ids", data = story_ids)
         data_file.create_dataset("story_sentences", data = story_sentences)
         data_file.create_dataset("image_embeddings", data = story_images)
@@ -207,9 +210,9 @@ class SIS_DataReader:
         print(result_sentence)
         return result_sentence
 
-    def get_image_features_hash(self):
+    def get_image_features_hash(self,file_name):
 
-        image_features_file = h5py.File('../dataset/alexnet_image_train_features.hdf5', 'r')
+        image_features_file = h5py.File(file_name, 'r')
         image_features_ids = image_features_file["image_ids"]
         image_embeddings = image_features_file["embeddings"]
         dictionary = {}
