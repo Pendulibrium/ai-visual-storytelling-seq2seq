@@ -6,7 +6,7 @@ __pycache__/
 .idea/
 .DS_Store
 vist_dataset/
-dataset/models/alexnet/
+dataset/vist_sis/
 # C extensions
 *.so
 
@@ -105,3 +105,6 @@ ENV/
 .mypy_cache/
 
 bvlc_alexnet.npy
+alexnet_image_test_features.hdf5
+alexnet_image_train_features.hdf5
+alexnet_image_validate_features.hdf5
