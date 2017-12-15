@@ -3,8 +3,6 @@ import numpy as np
 import operator
 from unidecode import unidecode
 import h5py
-import time
-from itertools import izip
 
 
 class SIS_DataReader:
@@ -103,15 +101,12 @@ class SIS_DataReader:
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
 
-        img_id_hash = self.get_image_features_hash()
+        img_hash = self.get_image_features_hash()
 
         story_ids = []
         story_sentences = []
         story_images = []
-        corrupted_img_id = []
 
-        flag = False
-        types=[]
         for i in range(0, len(annotations), 5):
 
             story_id = annotations[i][0]["story_id"]
@@ -127,41 +122,36 @@ class SIS_DataReader:
             img_id5, order5 = int(annotations[i + 4][0]["photo_flickr_id"]), annotations[i + 4][0][
                 "worker_arranged_photo_order"]
 
-            if not (img_id_hash.has_key(str(img_id1))):
-                story1 = self.get_empty_sentence(max_length)
-                # corrupted_img_id.append(img_id1)
-                # flag = True
+            if not (img_hash.has_key(str(img_id1))):
+                image1=np.zeros(4096).tolist()
             else:
+                image1=img_hash[str(img_id1)]
+
+            if not (img_hash.has_key(str(img_id2))):
+                image2 = np.zeros(4096).tolist()
+            else:
+                image2 = img_hash[str(img_id2)]
+
+            if not (img_hash.has_key(str(img_id3))):
+                image3 = np.zeros(4096).tolist()
+            else:
+                image3 = img_hash[str(img_id3)]
+
+            if not (img_hash.has_key(str(img_id4))):
+                image4 = np.zeros(4096).tolist()
+            else:
+                image4 = img_hash[str(img_id4)]
+
+            if not (img_hash.has_key(str(img_id5))):
+                image5 = np.zeros(4096).tolist()
+            else:
+                image5 = img_hash[str(img_id5)]
+
                 story1 = self.sentences_to_index_helper(annotations[i][0]["text"], words_to_idx, max_length)
-
-            if not (img_id_hash.has_key(str(img_id2))):
-                story2 = self.get_empty_sentence(max_length)
-                # corrupted_img_id.append(img_id2)
-                # flag = True
-            else:
                 story2 = self.sentences_to_index_helper(annotations[i + 1][0]["text"], words_to_idx, max_length)
-
-            if not (img_id_hash.has_key(str(img_id3))):
-                story3 = self.get_empty_sentence(max_length)
-                # flag = True
-                # corrupted_img_id.append(img_id3)
-            else:
                 story3 = self.sentences_to_index_helper(annotations[i + 2][0]["text"], words_to_idx, max_length)
-
-            if not (img_id_hash.has_key(str(img_id4))):
-                story4 = self.get_empty_sentence(max_length)
-                # corrupted_img_id.append(img_id4)
-                # flag = True
-            else:
                 story4 = self.sentences_to_index_helper(annotations[i + 3][0]["text"], words_to_idx, max_length)
-
-            if not (img_id_hash.has_key(str(img_id5))):
-                story5 = self.get_empty_sentence(max_length)
-                # flag = True
-                # corrupted_img_id.append(img_id5)
-            else:
                 story5 = self.sentences_to_index_helper(annotations[i + 4][0]["text"], words_to_idx, max_length)
-
                 order1 = annotations[i][0]["worker_arranged_photo_order"]
                 order2 = annotations[i + 1][0]["worker_arranged_photo_order"]
                 order3 = annotations[i + 2][0]["worker_arranged_photo_order"]
@@ -171,7 +161,7 @@ class SIS_DataReader:
             story_list = [(story1, order1), (story2, order2), (story3, order3), (story4, order4), (story5, order5)]
             story_list = sorted(story_list, key=operator.itemgetter(1))
 
-            image_list = [(img_id1, order1), (img_id2, order2), (img_id3, order3),(img_id4, order4), (img_id5, order5)]
+            image_list = [(image1, order1), (image2, order2), (image3, order3),(image4, order4), (image5, order5)]
             image_list = sorted(image_list, key=operator.itemgetter(1))
 
             ordered_stories = [story_list[0][0], story_list[1][0], story_list[2][0], story_list[3][0], story_list[4][0]]
@@ -181,22 +171,10 @@ class SIS_DataReader:
             story_sentences.append(ordered_stories)
             story_images.append(ordered_images)
 
-
-
-            # if flag == True:
-            #     print(story_id)
-            #     print(ordered_stories)
-            #     print(ordered_images)
-            #     flag = False
-
-        #print(corrupted_img_id)
-        #print(len(corrupted_img_id))
-        #story_ids=list(map(lambda x: int(x),story_ids))
-
         data_file = h5py.File('../dataset/stories_to_index.hdf5', 'w')
         data_file.create_dataset("story_ids", data = story_ids)
         data_file.create_dataset("story_sentences", data = story_sentences)
-        data_file.create_dataset("story_images", data = story_images)
+        data_file.create_dataset("image_embeddings", data = story_images)
 
     def sentences_to_index_helper(self, sentence, word_to_idx, max_length):
         words = sentence.split()
@@ -223,7 +201,8 @@ class SIS_DataReader:
 
         result_sentence = ""
         for word in sentence:
-            result_sentence = result_sentence + " " + idx_to_word[word]
+            if word == 0 :
+                result_sentence = result_sentence + " " + idx_to_word[word]
 
         print(result_sentence)
         return result_sentence
@@ -232,28 +211,19 @@ class SIS_DataReader:
 
         image_features_file = h5py.File('../dataset/alexnet_image_train_features.hdf5', 'r')
         image_features_ids = image_features_file["image_ids"]
-        dict = {}
+        image_embeddings = image_features_file["embeddings"]
+        dictionary = {}
 
-        for im in image_features_ids:
-            dict[str(im)] = 1
+        for id, em in zip(image_features_ids,image_embeddings):
+            dictionary[str(id)] = em
 
-        return dict
-
-    def get_empty_sentence(self,max_length):
-        result = []
-        max_length += 2
-        for i in range(max_length):
-            result.append(0)
-
-        return result
+        return dictionary
 
 
 object = SIS_DataReader()
 object.sentences_to_index()
-
-# data = json.load(open('../dataset/word_frequencies.json'))
-# print(type(data))
-# print(len(data))
-# print(type(data[0]))
-# for i in range(1000,2000):
-#     print(data[i])
+#
+# data_file=h5py.File('../dataset/stories_to_index.hdf5','r')
+# story_id=data_file["story_ids"]
+# sentence=data_file['story_sentences']
+# embed=data_file['image_embeddings']
