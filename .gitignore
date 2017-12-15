@@ -7,7 +7,7 @@ __pycache__/
 .DS_Store
 vist_dataset/
 dataset/vist_sis/
-dataset/stories_to_index_train.hdf5
+dataset/image_embeddings_to_sentence/
 # C extensions
 *.so
 

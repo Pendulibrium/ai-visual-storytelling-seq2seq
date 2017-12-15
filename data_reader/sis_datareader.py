@@ -7,7 +7,7 @@ import h5py
 
 class SIS_DataReader:
 
-    def __init__(self, path_to_file='../dataset/vist_sis/train.story-in-sequence.json'):
+    def __init__(self, path_to_file='../dataset/vist_dataset/validate_data/val.story-in-sequence.json'):
         self.path_to_file = path_to_file
 
     def create_word_frequency_document(self, path_to_json_file='../dataset/word_frequencies.json'):
@@ -94,8 +94,8 @@ class SIS_DataReader:
         return min_sentence_length
 
     def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json',
-                           image_embedding_file="../dataset/alexnet_image_train_features.hdf5",
-                           save_file_path='../dataset/stories_to_index.hdf5',
+                           image_embedding_file="../dataset/models/alexnet/alexnet_image_validate_features.hdf5",
+                           save_file_path='../dataset/stories_to_index_valid.hdf5',
                            max_length=20):
 
         vocabulary = json.load(open(vocabulary_file))
