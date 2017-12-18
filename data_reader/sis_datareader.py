@@ -223,9 +223,9 @@ class SIS_DataReader:
         return dictionary
 
 
-object = SIS_DataReader()
-object.sentences_to_index()
-#
+# object = SIS_DataReader()
+# object.sentences_to_index()
+# #
 # data_file=h5py.File('../dataset/stories_to_index.hdf5','r')
 # story_id=data_file["story_ids"]
 # sentence=data_file['story_sentences']
