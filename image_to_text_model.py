@@ -73,11 +73,11 @@ encoder_outputs, state_h, state_c = encoder(encoder_inputs)
 encoder_states = [state_h, state_c]
 
 decoder_inputs = Input(shape = (22,))
-print(decoder_inputs.shape)
+
 embedding_layer = Embedding(num_decoder_tokens, 300, mask_zero=True)
-decoder_inputs = embedding_layer(decoder_inputs)
+embedding_outputs = embedding_layer(decoder_inputs)
 decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
-decoder_outputs, _, _ = decoder_lstm(decoder_inputs, initial_state=encoder_states)
+decoder_outputs, _, _ = decoder_lstm(embedding_outputs, initial_state=encoder_states)
 decoder_dense = Dense(num_decoder_tokens, activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
 
