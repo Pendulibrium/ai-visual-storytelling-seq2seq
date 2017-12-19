@@ -26,27 +26,30 @@ print('Vocab size: ', num_decoder_tokens)
 
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
-image_embeddings2 = []
+image_embeddings2 = np.empty((200775,5,4096))
 print(time.time()-t)
 t=time.time()
-for embedding_list in image_embeddings:
 
-    for i in range(len(embedding_list)):
-            zero_image = np.zeros(4096).tolist()
-            if i==0:
-                image_embeddings2.append([embedding_list[i], zero_image, zero_image, zero_image, zero_image])
-            elif i==1:
-                image_embeddings2.append([embedding_list[i-1], embedding_list[i], zero_image, zero_image, zero_image])
-            elif i==2:
-                image_embeddings2.append([embedding_list[i-2], embedding_list[i-1], embedding_list[i], zero_image, zero_image])
-            elif i==3:
-                image_embeddings2.append([embedding_list[i-3],embedding_list[i-2],embedding_list[i-1], embedding_list[i], zero_image])
-            elif i==4:
-                image_embeddings2.append([embedding_list[i-4], embedding_list[i-3], embedding_list[i-2], embedding_list[i-1], embedding_list[i]])
+for i in range(num_samples):
 
-encoder_input_data = np.array(image_embeddings2)
-print(encoder_input_data.shape)
+    embedding_list = image_embeddings[i]
+    image_embedding1 = np.array(embedding_list[0])
+    image_embedding2 = np.array(embedding_list[1])
+    image_embedding3 = np.array(embedding_list[2])
+    image_embedding4 = np.array(embedding_list[3])
+    image_embedding5 = np.array(embedding_list[4])
+    zeros = np.zeros(4096)
+    image_embeddings2[i*5]=np.array([image_embedding1, zeros, zeros, zeros, zeros])
+    image_embeddings2[(i * 5)+1] = np.array([image_embedding1, image_embedding2, zeros, zeros, zeros])
+    image_embeddings2[(i * 5)+2] = np.array([image_embedding1, image_embedding2, image_embedding2, zeros, zeros])
+    image_embeddings2[(i * 5)+3] = np.array([image_embedding1, image_embedding2, image_embedding3, zeros, zeros])
+    image_embeddings2[(i * 5)+4] = np.array([image_embedding1, image_embedding2, image_embedding3, image_embedding4, image_embedding5])
+
+
 print(time.time()-t)
+encoder_input_data = image_embeddings2
+print(encoder_input_data.shape)
+
 t=time.time()
 decoder_input_data = []
 decoder_target_data = np.zeros((story_sentences.shape[0]*story_sentences.shape[1], story_sentences.shape[2], num_decoder_tokens), dtype='float32')
