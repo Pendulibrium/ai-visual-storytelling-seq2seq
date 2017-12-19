@@ -1,9 +1,11 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding
+from keras.layers import Input, LSTM, Dense, Embedding, Masking
+from keras.optimizers import *
 import numpy as np
 import h5py
 import json
 import time
+import datetime
 import os
 import psutil
 
@@ -59,17 +61,23 @@ epochs = 2  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300
 
+learning_rate = 0.001
+gradient_clip_value = 5.0
+
 num_samples = len(train_file["story_ids"])
 num_decoder_tokens = len(vocab_json['idx_to_words'])
 
+ts = time.time()
+start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 # print('Vocab size: ', num_decoder_tokens)
 
 # # Shape (num_samples, 4096), 4096 is the image embedding length
 encoder_inputs = Input(shape=(None, 4096))
-
+mask_layer = Masking(mask_value=0)
+mask_tensor = mask_layer(encoder_inputs)
 encoder = LSTM(latent_dim, return_state=True)
-encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+encoder_outputs, state_h, state_c = encoder(mask_tensor)
 encoder_states = [state_h, state_c]
 
 decoder_inputs = Input(shape=(22,))
@@ -81,10 +89,17 @@ decoder_outputs, _, _ = decoder_lstm(embedding_outputs, initial_state=encoder_st
 decoder_dense = Dense(num_decoder_tokens, activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
 
+
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
+model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
 model.fit_generator(generate_input_from_file('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5',
                                              './dataset/vist2017_vocabulary.json', batch_size),
-                    samples_per_epoch = num_samples / batch_size, epochs = epochs)
+                    steps_per_epoch = num_samples / batch_size, epochs = epochs)
+
+ts = time.time()
+end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
+model.save('./trained_models/' + str(start_time)+" - "+ str(end_time)+':image_to_text.h5')
