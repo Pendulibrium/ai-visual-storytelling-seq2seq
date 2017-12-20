@@ -57,7 +57,7 @@ vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 50  # Number of epochs to train for.
+epochs = 150  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300
 
@@ -68,7 +68,7 @@ num_samples = len(train_file["story_ids"])
 num_decoder_tokens = len(vocab_json['idx_to_words'])
 
 ts = time.time()
-start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
 
 # print('Vocab size: ', num_decoder_tokens)
 
@@ -81,7 +81,7 @@ encoder = LSTM(latent_dim, return_state=True)
 encoder_outputs, state_h, state_c = encoder(mask_tensor)
 encoder_states = [state_h, state_c]
 
-decoder_inputs = Input(shape=(None,))
+decoder_inputs = Input(shape=(22,))
 
 embedding_layer = Embedding(num_decoder_tokens, word_embedding_size, mask_zero=True)
 embedding_outputs = embedding_layer(decoder_inputs)

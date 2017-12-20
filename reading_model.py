@@ -1,0 +1,104 @@
+from keras.models import Model
+from keras.layers import Input, LSTM, Dense, Embedding, Masking
+from keras.optimizers import *
+from keras.models import load_model
+import numpy as np
+import h5py
+import json
+from nltk.translate.bleu_score import  sentence_bleu
+
+latent_dim = 256
+
+model = load_model("trained_models/2017-12-19_16:45:45-2017-12-19_22:08:35:mage_to_text.h5")
+print(model.layers)
+
+encoder_inputs = model.inputs[0]
+print(encoder_inputs.shape)
+encoder_lstm = model.layers[4]
+encoder_outputs, state_h, state_c = encoder_lstm(encoder_inputs)
+print(state_h.shape)
+print(state_c.shape)
+encoder_states = [state_h, state_c]
+encoder_model = Model(encoder_inputs, encoder_states)
+
+decoder_inputs = model.inputs[1]
+
+embedding_layer = model.layers[3]
+embedding_outputs = embedding_layer(decoder_inputs)
+print(embedding_outputs.shape)
+decoder_lstm = model.layers[5]
+decoder_state_input_h = Input(shape=(latent_dim,), name="input_3")
+decoder_state_input_c = Input(shape=(latent_dim,), name="input_4")
+decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+
+decoder_outputs, state_h, state_c = decoder_lstm(embedding_outputs, initial_state=decoder_states_inputs)
+decoder_states = [state_h, state_c]
+decoder_dense = model.layers[6]
+decoder_outputs = decoder_dense(decoder_outputs)
+
+decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
+
+vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
+num_decoder_tokens = len(vocab_json['idx_to_words'])
+words_to_idx = vocab_json["words_to_idx"]
+idx_to_words = vocab_json["idx_to_words"]
+
+max_decoder_seq_length = 22
+
+
+def decode_sequence(input_seq):
+    decoded_sentences = []
+
+    for image in input_seq:
+        decoded_sentence = ''
+        states_value = encoder_model.predict(image.reshape(1,1,4096))
+        target_seq = np.zeros((1, max_decoder_seq_length))
+        target_seq[0,0] = words_to_idx["<START>"]
+
+        stop_condition=False
+        i = 0
+
+        while not stop_condition:
+            i+=1
+
+            output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
+            sampled_word_index = np.argmax(output_tokens[0,-1,:])
+            sampled_word = idx_to_words[sampled_word_index]
+
+
+            if i > max_decoder_seq_length or sampled_word=="<END>":
+                break
+            decoded_sentence += sampled_word + " "
+            #target_seq = np.zeros((1, max_decoder_seq_length))
+            target_seq[0,i] = sampled_word_index
+            states_value = [h, c]
+        decoded_sentences.append(decoded_sentence)
+
+    return decoded_sentences
+
+
+train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
+story_ids = train_file["story_ids"]
+image_embeddings = train_file["image_embeddings"]
+story_sentences = train_file["story_sentences"]
+
+input_id = story_ids[1]
+input_images = image_embeddings[1]
+input_senteces = story_sentences[1]
+print(input_id)
+
+original_sentences = []
+for story in input_senteces:
+    st=''
+    for word in story:
+        if not (idx_to_words[word] == "<START>" or idx_to_words[word] == "<END>" or idx_to_words[word]=="<NULL>"):
+            st += idx_to_words[word] + " "
+
+    original_sentences.append(st)
+
+decoded = decode_sequence(input_images)
+for i in range(5):
+    score = sentence_bleu([original_sentences[i]],decoded[i])
+    print("Original", original_sentences[i])
+    print("Decoded", decoded[i])
+    print(score)
