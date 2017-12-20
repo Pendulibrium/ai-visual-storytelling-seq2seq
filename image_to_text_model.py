@@ -57,7 +57,7 @@ vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 2  # Number of epochs to train for.
+epochs = 50  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300
 
