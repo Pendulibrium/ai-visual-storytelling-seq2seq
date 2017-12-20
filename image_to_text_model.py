@@ -74,13 +74,14 @@ start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 # # Shape (num_samples, 4096), 4096 is the image embedding length
 encoder_inputs = Input(shape=(None, 4096))
+#sto pravi ovoj layer tuka da se proveri
 mask_layer = Masking(mask_value=0)
 mask_tensor = mask_layer(encoder_inputs)
 encoder = LSTM(latent_dim, return_state=True)
 encoder_outputs, state_h, state_c = encoder(mask_tensor)
 encoder_states = [state_h, state_c]
 
-decoder_inputs = Input(shape=(22,))
+decoder_inputs = Input(shape=(None,))
 
 embedding_layer = Embedding(num_decoder_tokens, word_embedding_size, mask_zero=True)
 embedding_outputs = embedding_layer(decoder_inputs)
@@ -102,4 +103,5 @@ model.fit_generator(generate_input_from_file('./dataset/image_embeddings_to_sent
 ts = time.time()
 end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
+#ova da se update-ne poso nemoze taka da se chuvaat fajlovite
 model.save('./trained_models/' + str(start_time)+" - "+ str(end_time)+':image_to_text.h5')
