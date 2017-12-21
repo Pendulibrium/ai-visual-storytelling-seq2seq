@@ -9,23 +9,25 @@ from nltk.translate.bleu_score import  sentence_bleu
 
 latent_dim = 256
 
-model = load_model("trained_models/2017-12-19_16:45:45-2017-12-19_22:08:35:mage_to_text.h5")
+model = load_model("trained_models/2017-12-20_16:13:22-2017-12-21_08:08:17:image_to_text.h5")
 print(model.layers)
 
 encoder_inputs = model.inputs[0]
-print(encoder_inputs.shape)
+mask_layer = model.layers[2]
+mask_tensor = mask_layer(encoder_inputs)
 encoder_lstm = model.layers[4]
-encoder_outputs, state_h, state_c = encoder_lstm(encoder_inputs)
-print(state_h.shape)
-print(state_c.shape)
+encoder_outputs, state_h, state_c = encoder_lstm(mask_tensor)
 encoder_states = [state_h, state_c]
 encoder_model = Model(encoder_inputs, encoder_states)
 
-decoder_inputs = model.inputs[1]
+#states_value = encoder_model.predict(np.random.normal(size = (1, 5, 4096)))
+#print("encoder states shapes: ", states_value[0].shape,  states_value[1].shape)
+
+decoder_inputs = Input(shape=(1,), name="input_2")
 
 embedding_layer = model.layers[3]
 embedding_outputs = embedding_layer(decoder_inputs)
-print(embedding_outputs.shape)
+print("Embed",embedding_outputs.shape)
 decoder_lstm = model.layers[5]
 decoder_state_input_h = Input(shape=(latent_dim,), name="input_3")
 decoder_state_input_c = Input(shape=(latent_dim,), name="input_4")
@@ -45,14 +47,23 @@ idx_to_words = vocab_json["idx_to_words"]
 
 max_decoder_seq_length = 22
 
+# [ 0.         -0.          0.76159418 -0.96402758  0.76159418  0.          0.
+#   0.          0.          0.99990916]
 
 def decode_sequence(input_seq):
     decoded_sentences = []
 
-    for image in input_seq:
+
+    for images in input_seq:
+        print(images[0][0:10])
+        images = images.reshape((1, 5, 4096))
         decoded_sentence = ''
-        states_value = encoder_model.predict(image.reshape(1,1,4096))
-        target_seq = np.zeros((1, max_decoder_seq_length))
+        states_value = encoder_model.predict(images)
+
+
+        target_seq = np.zeros((1, 1))
+        #target_seq[0,0] = words_to_idx["<START>"]
+
         target_seq[0,0] = words_to_idx["<START>"]
 
         stop_condition=False
@@ -65,12 +76,11 @@ def decode_sequence(input_seq):
             sampled_word_index = np.argmax(output_tokens[0,-1,:])
             sampled_word = idx_to_words[sampled_word_index]
 
-
             if i > max_decoder_seq_length or sampled_word=="<END>":
                 break
             decoded_sentence += sampled_word + " "
-            #target_seq = np.zeros((1, max_decoder_seq_length))
-            target_seq[0,i] = sampled_word_index
+            target_seq = np.zeros((1, 1))
+            target_seq[0,0] = sampled_word_index
             states_value = [h, c]
         decoded_sentences.append(decoded_sentence)
 
@@ -82,10 +92,24 @@ story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
 
-input_id = story_ids[1]
-input_images = image_embeddings[1]
-input_senteces = story_sentences[1]
+
+random_sample_index = np.random.randint(0, 40000)
+input_id = story_ids[random_sample_index]
+input_images = image_embeddings[random_sample_index]
+for i in range(len(image_embeddings)):
+    if i != 0:
+       if np.array_equal(image_embeddings[i], image_embeddings[i-1]):
+           print("EQUAL")
+
+input_senteces = story_sentences[random_sample_index]
 print(input_id)
+
+encoder_batch_input_data = np.zeros((5, 5, 4096))
+
+
+for j in range(5):
+    encoder_batch_input_data[0:5, j] = image_embeddings[j]
+
 
 original_sentences = []
 for story in input_senteces:
@@ -96,7 +120,8 @@ for story in input_senteces:
 
     original_sentences.append(st)
 
-decoded = decode_sequence(input_images)
+
+decoded = decode_sequence(encoder_batch_input_data)
 for i in range(5):
     score = sentence_bleu([original_sentences[i]],decoded[i])
     print("Original", original_sentences[i])
