@@ -5,7 +5,8 @@ from keras.models import load_model
 import numpy as np
 import h5py
 import json
-from nltk.translate.bleu_score import  sentence_bleu
+#from nltk.translate.bleu_score import  sentence_bleu
+from story_visualization import StoryPlot
 
 latent_dim = 256
 
@@ -55,7 +56,7 @@ def decode_sequence(input_seq):
 
 
     for images in input_seq:
-        print(images[0][0:10])
+        
         images = images.reshape((1, 5, 4096))
         decoded_sentence = ''
         states_value = encoder_model.predict(images)
@@ -119,8 +120,12 @@ for story in input_senteces:
 
 
 decoded = decode_sequence(encoder_batch_input_data)
+
 for i in range(5):
-    score = sentence_bleu([original_sentences[i]],decoded[i])
+    #score = sentence_bleu([original_sentences[i]],decoded[i])
     print("Original", original_sentences[i])
     print("Decoded", decoded[i])
-    print(score)
+    #print(score)
+
+story_plot = StoryPlot()
+story_plot.visualize_story(str(input_id), decoded)

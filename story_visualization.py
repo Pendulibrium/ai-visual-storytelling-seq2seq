@@ -8,8 +8,8 @@ import cv2
 
 class StoryPlot:
 
-    def __init__(self, stories_data_set_path='./dataset/vist_sis/train.story-in-sequence.json',
-                 images_root_folder_path='./dataset/sample_images'):
+    def __init__(self, stories_data_set_path='./dataset/vist_dataset/validate_data/val.story-in-sequence.json',
+                 images_root_folder_path='./dataset/vist_dataset/validate_data/images/val'):
 
         self.story_dataset_path = stories_data_set_path
         self.images_root_folder_path = images_root_folder_path
@@ -34,14 +34,17 @@ class StoryPlot:
                     story_image_filenames[i] = filename
 
         fig = plt.figure()
-
+        print(story_image_filenames)
         for i in range(len(story_image_filenames)):
             im = cv2.imread(story_image_filenames[i])
             im = cv2.resize(im, (227, 227))
-            a = fig.add_subplot(1, len(story_image_filenames), i + 1)
+            original_text = story[i]['text']
+	    original_text = original_text[:40] + "\n" + original_text[40:]
+            decoded_text = decoded_sentences[i][:40] + "\n" + decoded_sentences[i][40:]
+	    a = fig.add_subplot(1, len(story_image_filenames), i + 1)
             a.axis("off")
-            a.text(0, 250, story[i]['text'])
-            a.text(0, 290, decoded_sentences[i])
+            a.text(0, 250, original_text, ha = 'left', wrap = True)
+            a.text(0, 290, decoded_text, ha = 'left', wrap = True)
 
             plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
 
@@ -49,5 +52,3 @@ class StoryPlot:
         plt.axis("off")
         plt.show()
 
-story_plot = StoryPlot()
-story_plot.visualize_story("1500", ["Lorem ipsum 1", "Lorem ipsum 2", "Lorem ipsum 3\nblabla", "Lorem ipsum 4", "Lorem ipsum 5"])
