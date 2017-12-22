@@ -87,31 +87,28 @@ def decode_sequence(input_seq):
     return decoded_sentences
 
 
-train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
+train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
 story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
 
 
-random_sample_index = np.random.randint(0, 40000)
+random_sample_index = np.random.randint(0, 4900)
 input_id = story_ids[random_sample_index]
 input_images = image_embeddings[random_sample_index]
-for i in range(len(image_embeddings)):
-    if i != 0:
-       if np.array_equal(image_embeddings[i], image_embeddings[i-1]):
-           print("EQUAL")
 
 input_senteces = story_sentences[random_sample_index]
 print(input_id)
 
 encoder_batch_input_data = np.zeros((5, 5, 4096))
 
-
+print("input_images shape: ", input_images.shape)
 for j in range(5):
-    encoder_batch_input_data[0:5, j] = image_embeddings[j]
+    encoder_batch_input_data[j:5, j] = input_images[j]
 
 
 original_sentences = []
+
 for story in input_senteces:
     st=''
     for word in story:
