@@ -1,21 +1,22 @@
 import json
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 from glob import glob
 from PIL import Image
 import cv2
+import textwrap
+
+
 
 class StoryPlot:
-
     def __init__(self, stories_data_set_path='./dataset/vist_dataset/validate_data/val.story-in-sequence.json',
                  images_root_folder_path='./dataset/vist_dataset/validate_data/images/val'):
 
         self.story_dataset_path = stories_data_set_path
         self.images_root_folder_path = images_root_folder_path
         self.annotations = json.load(open(stories_data_set_path))['annotations']
-
-
 
     def visualize_story(self, story_id, decoded_sentences):
 
@@ -27,28 +28,39 @@ class StoryPlot:
 
         story = sorted(story, key=lambda k: k['worker_arranged_photo_order'])
         story_image_filenames = [''] * len(story)
-
+        print(story)
         for filename in glob(self.images_root_folder_path + '/*.jpg'):
             for i in range(len(story)):
                 if story[i]['photo_flickr_id'] in filename:
                     story_image_filenames[i] = filename
 
         fig = plt.figure()
-        print(story_image_filenames)
+
+        wrapper = textwrap.TextWrapper(width = 40)
         for i in range(len(story_image_filenames)):
             im = cv2.imread(story_image_filenames[i])
-            im = cv2.resize(im, (227, 227))
+            im = cv2.resize(im, (300, 300))
+
             original_text = story[i]['text']
-	    original_text = original_text[:40] + "\n" + original_text[40:]
-            decoded_text = decoded_sentences[i][:40] + "\n" + decoded_sentences[i][40:]
-	    a = fig.add_subplot(1, len(story_image_filenames), i + 1)
+            decoded_text = decoded_sentences[i]
+
+            a = fig.add_subplot(1, len(story_image_filenames), i + 1)
+
             a.axis("off")
-            a.text(0, 250, original_text, ha = 'left', wrap = True)
-            a.text(0, 290, decoded_text, ha = 'left', wrap = True)
+            a.text(0, 330, "\n".join(wrapper.wrap(original_text)), ha='left', va = "top")
+            a.text(0, 400,"\n".join(wrapper.wrap(decoded_text)), ha='left', va="top")
 
             plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
-
 
         plt.axis("off")
         plt.show()
 
+
+# story_plot = StoryPlot(stories_data_set_path='./dataset/vist_sis/train.story-in-sequence.json',
+#                        images_root_folder_path='./dataset/sample_images')
+# story_plot.visualize_story("11053", [
+#     "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard",
+#     "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard",
+#     "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard",
+#     "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard",
+#     "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard"])
