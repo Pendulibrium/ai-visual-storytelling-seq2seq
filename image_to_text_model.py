@@ -10,10 +10,8 @@ import os
 import psutil
 
 
-def generate_input_from_file(file_path, vocabulary_path, batch_size):
+def generate_input(train_file, vocab_json, batch_size):
     while 1:
-        train_file = h5py.File(file_path, 'r')
-        vocab_json = json.load(open(vocabulary_path))
         image_embeddings = train_file["image_embeddings"]
         story_sentences = train_file["story_sentences"]
         num_samples = len(image_embeddings)
@@ -57,9 +55,10 @@ vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 150  # Number of epochs to train for.
+epochs = 1  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
-word_embedding_size = 300
+word_embedding_size = 300 # Size of the word embedding space.
+num_of_stacked_rnn = 2 # Number of Stacked RNN layers
 
 
 learning_rate = 0.001
@@ -74,21 +73,38 @@ start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
 # print('Vocab size: ', num_decoder_tokens)
 
 # # Shape (num_samples, 4096), 4096 is the image embedding length
-encoder_inputs = Input(shape=(None, 4096))
+encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
 #sto pravi ovoj layer tuka da se proveri
-mask_layer = Masking(mask_value=0)
+mask_layer = Masking(mask_value=0, name="mask_layer")
 mask_tensor = mask_layer(encoder_inputs)
-encoder = LSTM(latent_dim, return_state=True)
+
+encoder_lstm_name="encoder_lstm_"
+encoder = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name+"0")
 encoder_outputs, state_h, state_c = encoder(mask_tensor)
 encoder_states = [state_h, state_c]
+for i in range(num_of_stacked_rnn - 1):
+    if i < num_of_stacked_rnn:
+        encoder = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name+str(i+1))
+    else:
+        encoder = LSTM(latent_dim, return_state=True, name=encoder_lstm_name+str(i+1))
 
-decoder_inputs = Input(shape=(22,))
+    encoder_outputs, state_h, state_c = encoder(encoder_outputs)
+    encoder_states = [state_h, state_c]
 
-embedding_layer = Embedding(num_decoder_tokens, word_embedding_size, mask_zero=True)
+decoder_inputs = Input(shape=(22,), name="decoder_input_layer")
+
+embedding_layer = Embedding(num_decoder_tokens, word_embedding_size, mask_zero=True, name="embedding_layer")
 embedding_outputs = embedding_layer(decoder_inputs)
-decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
-decoder_outputs, _, _ = decoder_lstm(embedding_outputs, initial_state=encoder_states)
-decoder_dense = Dense(num_decoder_tokens, activation='softmax')
+
+decoder_lstm_name="decoder_lstm_"
+decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name+"0")
+decoder_outputs, state_h, state_c = decoder_lstm(embedding_outputs, initial_state=encoder_states)
+decoder_states = [state_h, state_c]
+for i in range(num_of_stacked_rnn - 1):
+    decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name+str(i+1))
+    decoder_outputs, state_h, state_c = decoder_lstm(decoder_outputs)
+
+decoder_dense = Dense(num_decoder_tokens, activation='softmax', name="dense_layer")
 decoder_outputs = decoder_dense(decoder_outputs)
 
 
@@ -97,9 +113,7 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
-model.fit_generator(generate_input_from_file('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5',
-                                             './dataset/vist2017_vocabulary.json', batch_size),
-                    steps_per_epoch = num_samples / batch_size, epochs = epochs)
+model.fit_generator(generate_input(train_file,vocab_json, batch_size),steps_per_epoch = num_samples / batch_size, epochs = epochs)
 
 ts = time.time()
 end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
