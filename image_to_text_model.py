@@ -61,6 +61,7 @@ epochs = 150  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300
 
+
 learning_rate = 0.001
 gradient_clip_value = 5.0
 
