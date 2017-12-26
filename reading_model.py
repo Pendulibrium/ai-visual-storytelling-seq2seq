@@ -21,9 +21,6 @@ encoder_outputs, state_h, state_c = encoder_lstm(mask_tensor)
 encoder_states = [state_h, state_c]
 encoder_model = Model(encoder_inputs, encoder_states)
 
-# states_value = encoder_model.predict(np.random.normal(size = (1, 5, 4096)))
-# print("encoder states shapes: ", states_value[0].shape,  states_value[1].shape)
-
 decoder_inputs = Input(shape=(1,), name="input_2")
 
 embedding_layer = model.layers[3]
@@ -48,10 +45,6 @@ idx_to_words = vocab_json["idx_to_words"]
 
 max_decoder_seq_length = 22
 
-
-# [ 0.         -0.          0.76159418 -0.96402758  0.76159418  0.          0.
-#   0.          0.          0.99990916]
-
 def decode_sequence(input_seq):
     decoded_sentences = []
 
@@ -62,8 +55,6 @@ def decode_sequence(input_seq):
         states_value = encoder_model.predict(images)
 
         target_seq = np.zeros((1, 1))
-        # target_seq[0,0] = words_to_idx["<START>"]
-
         target_seq[0, 0] = words_to_idx["<START>"]
 
         stop_condition = False
@@ -74,6 +65,7 @@ def decode_sequence(input_seq):
 
             output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
             sampled_word_index = np.argmax(output_tokens[0, -1, :])
+
             sampled_word = idx_to_words[sampled_word_index]
 
             if i > max_decoder_seq_length or sampled_word == "<END>":
