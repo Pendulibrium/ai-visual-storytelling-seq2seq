@@ -6,11 +6,12 @@ from keras.preprocessing import sequence
 import numpy as np
 import h5py
 import json
-# from nltk.translate.bleu_score import  sentence_bleu
-# from story_visualization import StoryPlot
+from nltk.translate.bleu_score import  sentence_bleu
+from story_visualization import StoryPlot
 
 latent_dim = 256
 max_length = 22
+beam_size = 3
 
 model = load_model("trained_models/2017-12-20_16:13:22-2017-12-21_08:08:17:image_to_text.h5")
 print(model.layers)
@@ -72,7 +73,6 @@ def decode_sequence(input_seq, beam_size=1 ,vocab_size=1):
     for images in input_seq:
 
         images = images.reshape((1, 5, 4096))
-        decoded_sentence = ''
         state_value = encoder_model.predict(images)
         live_beam = 1
         live_sentence = [[words_to_idx["<START>"]]]
@@ -135,6 +135,7 @@ def integers_to_sentence(sentence, idx_to_word):
         result = result + idx_to_word[id]+" "
 
     return result
+
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
 story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
@@ -163,22 +164,19 @@ for story in input_senteces:
 
     original_sentences.append(st)
 
-decoded,scores = decode_sequence(encoder_batch_input_data, beam_size=2, vocab_size=len(words_to_idx))
-#print decoded
+
+decoded,scores = decode_sequence(encoder_batch_input_data, beam_size=beam_size, vocab_size=len(words_to_idx))
+
 for i in range(5):
-    # score = sentence_bleu([original_sentences[i]],decoded[i])
+    bleu_score = sentence_bleu([original_sentences[i]],decoded[i])
     print("Original", original_sentences[i])
 
-    print("Decoded", integers_to_sentence(decoded[i][0],idx_to_words))
-    print("Decoded", integers_to_sentence(decoded[i][1], idx_to_words))
-    #print("Decoded", integers_to_sentence(decoded[i][2], idx_to_words))
-    # print("Decoded", integers_to_sentence(decoded[i][3], idx_to_words))
-    # print("Decoded", integers_to_sentence(decoded[i][4], idx_to_words))
-    # print("Decoded", integers_to_sentence(decoded[i][5], idx_to_words))
-    # print("Decoded", integers_to_sentence(decoded[i][6], idx_to_words))
+    for j in range(beam_size):
+        print("Decoded", integers_to_sentence(decoded[i][j],idx_to_words))
+
     print(scores[i])
-    # print(score)
+    print(bleu_score)
 
 
-#story_plot = StoryPlot()
-#story_plot.visualize_story(str(input_id), decoded)
+story_plot = StoryPlot()
+story_plot.visualize_story(str(input_id), decoded)
