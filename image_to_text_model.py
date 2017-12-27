@@ -42,7 +42,7 @@ def generate_input(train_file, vocab_json, batch_size):
                                 word_index]] = 1
 
             if ((i + 1) % batch_size) == 0 and i != 0:
-                print("yield i: ", i)
+                #print("yield i: ", i)
                 yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
                 encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
                 decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22))
