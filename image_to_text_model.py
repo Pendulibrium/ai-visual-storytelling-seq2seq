@@ -53,12 +53,13 @@ def generate_input(train_file, vocab_json, batch_size):
 
 vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5','r')
+valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 13  # Batch size for training.
 epochs = 1  # Number of epochs to train for.
-latent_dim = 256  # Latent dimensionality of the encoding space.
+latent_dim = 4  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
-num_of_stacked_rnn = 2 # Number of Stacked RNN layers
+num_of_stacked_rnn = 1 # Number of Stacked RNN layers
 
 
 learning_rate = 0.001
@@ -66,6 +67,7 @@ gradient_clip_value = 5.0
 
 num_samples = len(train_file["story_ids"])
 num_decoder_tokens = len(vocab_json['idx_to_words'])
+valid_steps = len(valid_file["story_ids"])/batch_size
 
 ts = time.time()
 start_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
@@ -80,7 +82,7 @@ mask_tensor = mask_layer(encoder_inputs)
 encoder_lstm_name="encoder_lstm_"
 encoder_0 = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name+"0")
 encoder_outputs, state_h, state_c = encoder_0(mask_tensor)
-#encoder_states = [state_h, state_c]
+encoder_states = [state_h, state_c]
 for i in range(num_of_stacked_rnn - 1):
     if i < num_of_stacked_rnn:
         encoder = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name+str(i+1))
@@ -112,7 +114,9 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
-model.fit_generator(generate_input(train_file,vocab_json, batch_size),steps_per_epoch = num_samples / batch_size, epochs = epochs)
+#da mu se dodade na fit_generator validation_data = generator_input(validation_data_file,...)
+model.fit_generator(generate_input(train_file,vocab_json, batch_size),steps_per_epoch = num_samples / batch_size, epochs = epochs,
+                    validation_data=generate_input(valid_file,vocab_json,batch_size), validation_steps=valid_steps)
 
 ts = time.time()
 end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
