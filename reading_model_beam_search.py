@@ -54,7 +54,7 @@ def predict(live_sentence, state_values):
 
     for i in range(len(live_sentence)):
         target_seq=np.zeros((1,1))
-        last_word = live_sentence[i][len(live_sentence[i])-1]
+        last_word = live_sentence[i][-1]
         target_seq[0,0] = last_word
         prob, h, c = decoder_model.predict([target_seq]+state_values[i])
 
@@ -86,9 +86,11 @@ def decode_sequence(input_seq, beam_size=1 ,vocab_size=1):
             state_values.append(state_value)
 
         j=0
+
         while live_beam and dead_beam < beam_size:
 
             probs, new_states = predict(live_sentence, state_values)
+
             if j == 0:
                 state_values = []
                 for _ in range(beam_size):
@@ -96,6 +98,7 @@ def decode_sequence(input_seq, beam_size=1 ,vocab_size=1):
 
             else:
                 state_values = new_states
+
             j+=1
             cand_scores = np.array(live_score)[:,None] - np.log(probs)
             cand_flat = cand_scores.flatten()
@@ -103,7 +106,7 @@ def decode_sequence(input_seq, beam_size=1 ,vocab_size=1):
             ranks_flat = cand_flat.argsort()[:(beam_size-dead_beam)]
             live_score = cand_flat[ranks_flat]
 
-            live_sentence= [live_sentence[r//vocab_size]+[r%vocab_size] for r in ranks_flat]
+            live_sentence = [live_sentence[r//vocab_size]+[r%vocab_size] for r in ranks_flat]
 
             zombie = [s[-1] == 2 or len(s) >= max_length for s in live_sentence]
 
@@ -115,10 +118,12 @@ def decode_sequence(input_seq, beam_size=1 ,vocab_size=1):
             # remove zombies from the living
             live_sentence= [s for s, z in zip(live_sentence, zombie) if not z]
             live_score = [s for s, z in zip(live_score, zombie) if not z]
+            state_values = [s for s, z in zip(state_values, zombie) if not z]
+
             live_beam = len(live_sentence)
 
-        decoded_sentences.append(dead_sentence+live_sentence)
-        scores.append(dead_scores+live_score)
+        decoded_sentences.append(dead_sentence + live_sentence)
+        scores.append(dead_scores + live_score)
 
     return decoded_sentences, scores
 
@@ -138,7 +143,7 @@ story_sentences = train_file["story_sentences"]
 random_sample_index = np.random.randint(0, 4900)
 input_id = story_ids[random_sample_index]
 input_images = image_embeddings[random_sample_index]
-
+print(random_sample_index)
 input_senteces = story_sentences[random_sample_index]
 print(input_id)
 
@@ -158,7 +163,7 @@ for story in input_senteces:
 
     original_sentences.append(st)
 
-decoded,scores = decode_sequence(encoder_batch_input_data, beam_size=3, vocab_size=len(words_to_idx))
+decoded,scores = decode_sequence(encoder_batch_input_data, beam_size=2, vocab_size=len(words_to_idx))
 #print decoded
 for i in range(5):
     # score = sentence_bleu([original_sentences[i]],decoded[i])
@@ -166,7 +171,7 @@ for i in range(5):
 
     print("Decoded", integers_to_sentence(decoded[i][0],idx_to_words))
     print("Decoded", integers_to_sentence(decoded[i][1], idx_to_words))
-    print("Decoded", integers_to_sentence(decoded[i][2], idx_to_words))
+    #print("Decoded", integers_to_sentence(decoded[i][2], idx_to_words))
     # print("Decoded", integers_to_sentence(decoded[i][3], idx_to_words))
     # print("Decoded", integers_to_sentence(decoded[i][4], idx_to_words))
     # print("Decoded", integers_to_sentence(decoded[i][5], idx_to_words))
