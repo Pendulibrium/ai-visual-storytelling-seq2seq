@@ -1,6 +1,7 @@
 from keras.models import Model
 from keras.layers import Input, LSTM, Dense, Embedding, Masking
 from keras.optimizers import *
+from keras.callbacks import ModelCheckpoint, CSVLogger
 import numpy as np
 import h5py
 import json
@@ -10,14 +11,13 @@ import os
 import psutil
 
 
-def generate_input(train_file, vocab_json, batch_size):
+def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_captioning=False):
     while 1:
         image_embeddings = train_file["image_embeddings"]
         story_sentences = train_file["story_sentences"]
         num_samples = len(image_embeddings)
-        samples_per_story = 5
 
-        encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
+        encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 1, 4096))
         decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22))
         decoder_batch_target_data = np.zeros(
             (batch_size * samples_per_story, story_sentences.shape[2], len(vocab_json['idx_to_words'])),
@@ -26,11 +26,15 @@ def generate_input(train_file, vocab_json, batch_size):
 
         for i in range(num_samples):
 
-            for j in range(samples_per_story):
-                encoder_batch_input_data[
-                ((i % batch_size) * samples_per_story): ((i % batch_size) * samples_per_story) + 5, j] = \
-                    image_embeddings[i][j]
-                decoder_batch_input_data[(i % batch_size) * samples_per_story + j] = story_sentences[i][j]
+            if not(is_captioning):
+                for j in range(samples_per_story):
+                    encoder_batch_input_data[
+                    ((i % batch_size) * samples_per_story): ((i % batch_size) * samples_per_story) + 5, j] = image_embeddings[i][j]
+                    decoder_batch_input_data[(i % batch_size) * samples_per_story + j] = story_sentences[i][j]
+            else:
+                for j in range(samples_per_story):
+                    encoder_batch_input_data[((i % batch_size) * samples_per_story) + j, 0] = image_embeddings[i][j]
+                    decoder_batch_input_data[(i % batch_size) * samples_per_story + j] = story_sentences[i][j]
 
             story = story_sentences[i]
             for sentence_index in range(len(story)):
@@ -114,9 +118,10 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
-#da mu se dodade na fit_generator validation_data = generator_input(validation_data_file,...)
-model.fit_generator(generate_input(train_file,vocab_json, batch_size),steps_per_epoch = num_samples / batch_size, epochs = epochs,
-                    validation_data=generate_input(valid_file,vocab_json,batch_size), validation_steps=valid_steps)
+checkpointer = ModelCheckpoint(filepath='./checkpoints/chekpoint.hdf5', verbose=1, save_best_only=True)
+csv_logger = CSVLogger(start_time+".csv", separator=',', append=False)
+model.fit_generator(generate_input(train_file,vocab_json, batch_size, is_captioning=True), steps_per_epoch = num_samples / batch_size, epochs = epochs,
+                    validation_data=generate_input(valid_file,vocab_json,batch_size, is_captioning=True), validation_steps=valid_steps, callbacks=[checkpointer])
 
 ts = time.time()
 end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
