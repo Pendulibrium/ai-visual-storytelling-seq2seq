@@ -8,6 +8,7 @@ __pycache__/
 vist_dataset/
 dataset/vist_sis/
 trained_models/
+checkpoints/
 dataset/image_embeddings_to_sentence/
 # C extensions
 *.so
