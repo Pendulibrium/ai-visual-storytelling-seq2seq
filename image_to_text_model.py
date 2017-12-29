@@ -127,7 +127,8 @@ decoder_outputs = decoder_dense(decoder_outputs)
 
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
-optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
+#optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
+optimizer = Adam(lr=learning_rate, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
 checkpointer = ModelCheckpoint(filepath='./checkpoints/chekpoint.hdf5', verbose=1, save_best_only=True)
