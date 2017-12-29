@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger
 import numpy as np
@@ -76,10 +76,10 @@ train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 3  # Number of epochs to train for.
-latent_dim = 256  # Latent dimensionality of the encoding space.
+epochs = 20  # Number of epochs to train for.
+latent_dim = 512  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
-num_of_stacked_rnn = 1 # Number of Stacked RNN layers
+num_of_stacked_rnn = 3 # Number of Stacked RNN layers
 
 
 learning_rate = 0.001
@@ -135,7 +135,7 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 optimizer = Adam(lr=learning_rate, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 
-checkpointer = ModelCheckpoint(filepath='./checkpoints/chekpoint.hdf5', verbose=1, save_best_only=True)
+checkpointer = ModelCheckpoint(filepath='./checkpoints/chekpoint_gru.hdf5', verbose=1, save_best_only=True)
 csv_logger = CSVLogger(start_time+".csv", separator=',', append=False)
 model.fit_generator(generate_input(train_file,vocab_json, batch_size, is_captioning=False), steps_per_epoch = num_samples / batch_size, epochs = epochs,
                     validation_data=generate_input(valid_file,vocab_json,batch_size, is_captioning=False), validation_steps=valid_steps, callbacks=[checkpointer, csv_logger])
