@@ -38,11 +38,10 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
 
                     decoder_row = (i % batch_size) * samples_per_story + j
 
-                    decoder_batch_input_data[decoder_row]=story_sentences[i][j]
-                    #temp_story = story_sentences[i][j].tolist()
-                    #end_index = temp_story.index(2)
-                    #temp_story[end_index] = 0
-                    #decoder_batch_input_data[decoder_row] = np.array(temp_story)
+                    temp_story = story_sentences[i][j].tolist()
+                    end_index = temp_story.index(2)
+                    temp_story[end_index] = 0
+                    decoder_batch_input_data[decoder_row] = np.array(temp_story)
 
             else:
                 for j in range(samples_per_story):
@@ -61,13 +60,15 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
             if ((i + 1) % batch_size) == 0 and i != 0:
 
                 print("yield i: ", i)
+                #print(nlp.vec_to_sentence(decoder_batch_input_data[0], idx_to_words))
+                #print(nlp.one_hot_vec_to_sentence(decoder_batch_target_data[0], idx_to_words))
                 yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-                # encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
-                # decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22), dtype= np.int32)
-                # decoder_batch_target_data = np.zeros(
-                #    (batch_size * samples_per_story, story_sentences.shape[2], len(vocab_json['idx_to_words'])),
-                #    dtype=np.int32)
+                encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
+                decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22), dtype= np.int32)
+                decoder_batch_target_data = np.zeros(
+                  (batch_size * samples_per_story, story_sentences.shape[2], len(vocab_json['idx_to_words'])),
+                  dtype=np.int32)
 
 
 vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
