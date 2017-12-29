@@ -17,18 +17,17 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
         image_embeddings = train_file["image_embeddings"]
         story_sentences = train_file["story_sentences"]
         num_samples = len(image_embeddings)
-
+        idx_to_words = vocab_json["idx_to_words"]
+        encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
+        decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22),
+                                            dtype=np.int32)
+        decoder_batch_target_data = np.zeros(
+            (batch_size * samples_per_story, story_sentences.shape[2], len(idx_to_words)),
+            dtype=np.int32)
 
         #print("decoder shape", decoder_batch_target_data.shape)
 
         for i in range(num_samples):
-
-            encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
-            decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22),
-                                                dtype=np.int32)
-            decoder_batch_target_data = np.zeros(
-                (batch_size * samples_per_story, story_sentences.shape[2], len(vocab_json['idx_to_words'])),
-                dtype=np.int32)
 
             if not(is_captioning):
                 for j in range(samples_per_story):
@@ -39,10 +38,11 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
 
                     decoder_row = (i % batch_size) * samples_per_story + j
 
-                    temp_story = story_sentences[i][j].tolist()
-                    end_index = temp_story.index(2)
-                    temp_story[end_index] = 0
-                    decoder_batch_input_data[decoder_row] = np.array(temp_story)
+                    decoder_batch_input_data[decoder_row]=story_sentences[i][j]
+                    #temp_story = story_sentences[i][j].tolist()
+                    #end_index = temp_story.index(2)
+                    #temp_story[end_index] = 0
+                    #decoder_batch_input_data[decoder_row] = np.array(temp_story)
 
             else:
                 for j in range(samples_per_story):
@@ -61,7 +61,6 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
             if ((i + 1) % batch_size) == 0 and i != 0:
 
                 print("yield i: ", i)
-
                 yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
                 # encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
