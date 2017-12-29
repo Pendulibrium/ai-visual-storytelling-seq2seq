@@ -10,7 +10,7 @@ from story_visualization import StoryPlot
 
 latent_dim = 256
 
-model = load_model("trained_models/2017-12-20_16:13:22-2017-12-21_08:08:17:image_to_text.h5")
+model = load_model("./dataset/trained_models/2017-12-20_16:13:22-2017-12-21_08:08:17:image_to_text.h5")
 print(model.layers)
 
 encoder_inputs = model.inputs[0]
@@ -44,6 +44,7 @@ words_to_idx = vocab_json["words_to_idx"]
 idx_to_words = vocab_json["idx_to_words"]
 
 max_decoder_seq_length = 22
+
 
 def decode_sequence(input_seq):
     decoded_sentences = []
@@ -84,36 +85,40 @@ story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
 
-random_sample_index = np.random.randint(0, 4900)
-input_id = story_ids[random_sample_index]
-input_images = image_embeddings[random_sample_index]
+while True:
 
-input_senteces = story_sentences[random_sample_index]
-print(input_id)
+    input_story_id = raw_input('enter story id: ')
+    print("input story id", input_story_id)
+    random_sample_index = np.random.randint(0, 4900)
 
-encoder_batch_input_data = np.zeros((5, 5, 4096))
+    input_id = story_ids[random_sample_index]
+    input_images = image_embeddings[random_sample_index]
 
-print("input_images shape: ", input_images.shape)
-for j in range(5):
-    encoder_batch_input_data[j:5, j] = input_images[j]
+    input_senteces = story_sentences[random_sample_index]
+    print(input_id)
 
-original_sentences = []
+    encoder_batch_input_data = np.zeros((5, 5, 4096))
 
-for story in input_senteces:
-    st = ''
-    for word in story:
-        if not (idx_to_words[word] == "<START>" or idx_to_words[word] == "<END>" or idx_to_words[word] == "<NULL>"):
-            st += idx_to_words[word] + " "
+    print("input_images shape: ", input_images.shape)
+    for j in range(5):
+        encoder_batch_input_data[j:5, j] = input_images[j]
 
-    original_sentences.append(st)
+    original_sentences = []
 
-decoded = decode_sequence(encoder_batch_input_data)
+    for story in input_senteces:
+        st = ''
+        for word in story:
+            if not (idx_to_words[word] == "<START>" or idx_to_words[word] == "<END>" or idx_to_words[word] == "<NULL>"):
+                st += idx_to_words[word] + " "
+        original_sentences.append(st)
 
-for i in range(5):
-    # score = sentence_bleu([original_sentences[i]],decoded[i])
-    print("Original", original_sentences[i])
-    print("Decoded", decoded[i])
-    # print(score)
+    decoded = decode_sequence(encoder_batch_input_data)
 
-story_plot = StoryPlot()
-story_plot.visualize_story(str(input_id), decoded)
+    for i in range(5):
+        # score = sentence_bleu([original_sentences[i]],decoded[i])
+        print("Original", original_sentences[i])
+        print("Decoded", decoded[i])
+        # print(score)
+
+    #story_plot = StoryPlot()
+    #story_plot.visualize_story(str(input_id), decoded)
