@@ -70,7 +70,7 @@ train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 20  # Number of epochs to train for.
+epochs = 1  # Number of epochs to train for.
 latent_dim = 512  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
 num_of_stacked_rnn = 3 # Number of Stacked RNN layers
