@@ -13,6 +13,7 @@ from nlp import nlp
 
 
 def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_captioning=False):
+
     while 1:
         image_embeddings = train_file["image_embeddings"]
         story_sentences = train_file["story_sentences"]
@@ -24,9 +25,6 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
         decoder_batch_target_data = np.zeros(
             (batch_size * samples_per_story, story_sentences.shape[2], len(idx_to_words)),
             dtype=np.int32)
-
-        #print("decoder shape", decoder_batch_target_data.shape)
-
         for i in range(num_samples):
 
             if not(is_captioning):
@@ -58,10 +56,6 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
                                 word_index]] = 1
 
             if ((i + 1) % batch_size) == 0 and i != 0:
-
-                print("yield i: ", i)
-                #print(nlp.vec_to_sentence(decoder_batch_input_data[0], idx_to_words))
-                #print(nlp.one_hot_vec_to_sentence(decoder_batch_target_data[0], idx_to_words))
                 yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
                 encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
@@ -76,7 +70,7 @@ train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 20  # Number of epochs to train for.
+epochs = 1  # Number of epochs to train for.
 latent_dim = 512  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
 num_of_stacked_rnn = 3 # Number of Stacked RNN layers
@@ -100,17 +94,17 @@ mask_layer = Masking(mask_value=0, name="mask_layer")
 mask_tensor = mask_layer(encoder_inputs)
 
 encoder_lstm_name="encoder_lstm_"
-encoder_0 = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name+"0")
-encoder_outputs, state_h, state_c = encoder_0(mask_tensor)
 
-
-for i in range(1,num_of_stacked_rnn):
+for i in range(0, num_of_stacked_rnn):
     if i == num_of_stacked_rnn-1:
-        encoder = LSTM(latent_dim, return_state=True, name=encoder_lstm_name + str(i + 1))
+        encoder = LSTM(latent_dim, return_state=True, name=encoder_lstm_name + str(i))
     else:
         encoder = LSTM(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name + str(i))
 
-    encoder_outputs, state_h, state_c = encoder(encoder_outputs)
+    if i == 0:
+        encoder_outputs, state_h, state_c = encoder(mask_tensor)
+    else:
+        encoder_outputs, state_h, state_c = encoder(encoder_outputs)
 
 
 encoder_states = [state_h, state_c]
@@ -121,12 +115,14 @@ embedding_layer = Embedding(num_decoder_tokens, word_embedding_size, mask_zero=T
 embedding_outputs = embedding_layer(decoder_inputs)
 
 decoder_lstm_name="decoder_lstm_"
-decoder_lstm_0 = LSTM(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name+"0")
-decoder_outputs, state_h, state_c = decoder_lstm_0(embedding_outputs, initial_state=encoder_states)
-decoder_states = [state_h, state_c]
-for i in range(1,num_of_stacked_rnn):
-    decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name+str(i))
-    decoder_outputs, state_h, state_c = decoder_lstm(decoder_outputs)
+
+for i in range(0,num_of_stacked_rnn):
+    decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name + str(i))
+
+    if i == 0:
+        decoder_outputs, _, _ = decoder_lstm(embedding_outputs, initial_state=encoder_states)
+    else:
+        decoder_outputs, _, _ = decoder_lstm(decoder_outputs)
 
 decoder_dense = Dense(num_decoder_tokens, activation='softmax', name="dense_layer")
 decoder_outputs = decoder_dense(decoder_outputs)
@@ -137,8 +133,8 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 #optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
 optimizer = Adam(lr=learning_rate, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
-
-checkpointer = ModelCheckpoint(filepath='./checkpoints/chekpoint_gru.hdf5', verbose=1, save_best_only=True)
+checkpoint_name=start_time+"checkpoit.hdf5"
+checkpointer = ModelCheckpoint(filepath='./checkpoints/'+checkpoint_name, verbose=1, save_best_only=True)
 csv_logger = CSVLogger(start_time+".csv", separator=',', append=False)
 model.fit_generator(generate_input(train_file,vocab_json, batch_size, is_captioning=False), steps_per_epoch = num_samples / batch_size, epochs = epochs,
                     validation_data=generate_input(valid_file,vocab_json,batch_size, is_captioning=False), validation_steps=valid_steps, callbacks=[checkpointer, csv_logger])
