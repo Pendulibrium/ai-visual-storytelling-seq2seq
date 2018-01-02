@@ -3,6 +3,8 @@ import numpy as np
 import operator
 from unidecode import unidecode
 import h5py
+import os
+import glob
 
 
 class SIS_DataReader:
@@ -96,6 +98,7 @@ class SIS_DataReader:
     def sentences_to_index(self, vocabulary_file='../dataset/vist2017_vocabulary.json',
                            image_embedding_file="../dataset/models/alexnet/alexnet_image_train_features.hdf5",
                            save_file_path='../dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5',
+                           images_directory='../dataset/vist_dataset/training_data/train_img',
                            max_length=20):
 
         vocabulary = json.load(open(vocabulary_file))
@@ -106,9 +109,15 @@ class SIS_DataReader:
 
         img_hash = self.get_image_features_hash(image_embedding_file)
 
+        images_path_names = [y for x in os.walk(images_directory) for y in glob(os.path.join(x[0], "*.jpg"))]
+        images_path_names_png = [y for x in os.walk(images_directory) for y in glob(os.path.join(x[0], "*.png"))]
+        images_path_names = np.append(images_path_names, images_path_names_png)
+
         story_ids = []
         story_sentences = []
         story_images = []
+        story_images_ids = []
+        story_images_paths = []
 
         for i in range(0, len(annotations), 5):
 
@@ -170,15 +179,35 @@ class SIS_DataReader:
 
             ordered_stories = [story_list[0][0], story_list[1][0], story_list[2][0], story_list[3][0], story_list[4][0]]
             ordered_images = [image_list[0][0], image_list[1][0], image_list[2][0], image_list[3][0], image_list[4][0]]
+            ordered_image_ids = [img_id1, img_id2, img_id3, img_id4, img_id5]
+
+            ordered_image_path_names = []
+            for file_idx in range(len(images_path_names)):
+                if images_path_names[file_idx].find(str(img_id1)):
+                    ordered_image_path_names.append(images_path_names[file_idx])
+                elif images_path_names[file_idx].find(str(img_id2)):
+                    ordered_image_path_names.append(images_path_names[file_idx])
+                elif images_path_names[file_idx].find(str(img_id3)):
+                    ordered_image_path_names.append(images_path_names[file_idx])
+                elif images_path_names[file_idx].find(str(img_id4)):
+                    ordered_image_path_names.append(images_path_names[file_idx])
+                elif images_path_names[file_idx].find(str(img_id5)):
+                    ordered_image_path_names.append(images_path_names[file_idx])
+                else:
+                    ordered_image_path_names.append("None")
 
             story_ids.append(int(story_id))
             story_sentences.append(ordered_stories)
             story_images.append(ordered_images)
+            story_images_ids.append(ordered_image_ids)
+            story_images_paths.append(ordered_image_path_names)
 
         data_file = h5py.File(save_file_path, 'w')
         data_file.create_dataset("story_ids", data = story_ids)
         data_file.create_dataset("story_sentences", data = story_sentences)
         data_file.create_dataset("image_embeddings", data = story_images)
+        data_file.create_dataset("image_ids", data = story_images_ids)
+        data_file.create_dataset("image_paths", data = story_images_paths)
 
     def sentences_to_index_helper(self, sentence, word_to_idx, max_length):
         words = sentence.split()
