@@ -71,13 +71,13 @@ valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 
 batch_size = 13  # Batch size for training.
 epochs = 1  # Number of epochs to train for.
-latent_dim = 512  # Latent dimensionality of the encoding space.
+latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
-num_of_stacked_rnn = 3 # Number of Stacked RNN layers
+num_of_stacked_rnn = 2 # Number of Stacked RNN layers
 
 
-learning_rate = 0.001
-gradient_clip_value = 5.0
+learning_rate = 0.01
+gradient_clip_value = 10.0
 
 num_samples = len(train_file["story_ids"])
 num_decoder_tokens = len(vocab_json['idx_to_words'])
@@ -130,8 +130,8 @@ decoder_outputs = decoder_dense(decoder_outputs)
 
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
-#optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
-optimizer = Adam(lr=learning_rate, clipvalue = gradient_clip_value)
+optimizer = RMSprop(lr=learning_rate, rho=0.9, epsilon=1e-08, decay=0.0, clipvalue = gradient_clip_value)
+#optimizer = Adam(lr=learning_rate, clipvalue = gradient_clip_value)
 model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 checkpoint_name=start_time+"checkpoit.hdf5"
 checkpointer = ModelCheckpoint(filepath='./checkpoints/'+checkpoint_name, verbose=1, save_best_only=True)
