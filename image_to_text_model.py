@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger
 import numpy as np
@@ -70,13 +70,13 @@ train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 13  # Batch size for training.
-epochs = 1  # Number of epochs to train for.
+epochs = 4  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
 num_of_stacked_rnn = 2 # Number of Stacked RNN layers
 
 
-learning_rate = 0.01
+learning_rate = 0.001
 gradient_clip_value = 10.0
 
 num_samples = len(train_file["story_ids"])
@@ -124,7 +124,7 @@ for i in range(0,num_of_stacked_rnn):
     else:
         decoder_outputs, _, _ = decoder_lstm(decoder_outputs)
 
-decoder_dense = Dense(num_decoder_tokens, activation='softmax', name="dense_layer")
+decoder_dense = TimeDistributed(Dense(num_decoder_tokens, activation='softmax'), name="dense_layer")
 decoder_outputs = decoder_dense(decoder_outputs)
 
 
