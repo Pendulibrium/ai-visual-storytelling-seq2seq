@@ -2,35 +2,32 @@ from keras.models import Model
 from keras.layers import Input, LSTM, Dense, Embedding, Masking
 from keras.optimizers import *
 from keras.models import load_model
+from keras.utils import plot_model
 import numpy as np
 import h5py
 import json
-from nltk.translate.bleu_score import  sentence_bleu
+#from nltk.translate.bleu_score import  sentence_bleu
 
 latent_dim = 256
 num_of_stacked_rnn = 2
 
-model = load_model("trained_models/2017-12-22_14:53:51-2017-12-22_17:31:36:image_to_text.h5")
-print(model.layers)
-
+model = load_model("trained_models/2018-01-03_11:42:14-2018-01-03_12:57:35:image_to_text.h5")
+#print(model.layers)
+#plot_model(model, to_file='model.png' , show_shapes= True)
 encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
-mask_layer = model.get_layer("mask_layer")
-mask_tensor = mask_layer(encoder_inputs)
-
 encoder_lstm_name="encoder_lstm_"
+
 for i in range(num_of_stacked_rnn):
     encoder_lstm = model.get_layer(encoder_lstm_name+str(i))
     if i == 0:
-        encoder_outputs, state_h, state_c = encoder_lstm(mask_tensor)
+        encoder_outputs, state_h, state_c = encoder_lstm(encoder_inputs)
     else:
         encoder_outputs, state_h, state_c = encoder_lstm(encoder_outputs)
-    encoder_states = [state_h, state_c]
 
+encoder_states = [state_h, state_c]
 
 encoder_model = Model(encoder_inputs, encoder_states)
-
-#states_value = encoder_model.predict(np.random.normal(size = (1, 5, 4096)))
-#print("encoder states shapes: ", states_value[0].shape,  states_value[1].shape)
+#plot_model(encoder_model, to_file='encoder_model.png' , show_shapes= True)
 
 decoder_inputs = Input(shape=(1,), name="input_2")
 
@@ -42,6 +39,7 @@ decoder_lstm_name="decoder_lstm_"
 decoder_state_input_h = Input(shape=(latent_dim,), name="input_3")
 decoder_state_input_c = Input(shape=(latent_dim,), name="input_4")
 decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+
 for i in range(num_of_stacked_rnn):
     decoder_lstm = model.get_layer(decoder_lstm_name + str(i))
     if i == 0:
@@ -63,47 +61,44 @@ words_to_idx = vocab_json["words_to_idx"]
 idx_to_words = vocab_json["idx_to_words"]
 
 max_decoder_seq_length = 22
-
-# [ 0.         -0.          0.76159418 -0.96402758  0.76159418  0.          0.
-#   0.          0.          0.99990916]
+#plot_model(decoder_model, to_file='decoder_model.png', show_shapes=True)
 
 def decode_sequence(input_seq):
     decoded_sentences = []
 
-
     for images in input_seq:
-        #print(images[0][0:10])
+
         images = images.reshape((1, 5, 4096))
+
         decoded_sentence = ''
         states_value = encoder_model.predict(images)
 
         target_seq = np.zeros((1, 1))
-        #target_seq[0,0] = words_to_idx["<START>"]
+        target_seq[0, 0] = words_to_idx["<START>"]
 
-        target_seq[0,0] = words_to_idx["<START>"]
-
-        stop_condition=False
+        stop_condition = False
         i = 0
 
         while not stop_condition:
-            i+=1
+            i += 1
 
             output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
-            sampled_word_index = np.argmax(output_tokens[0,-1,:])
+            sampled_word_index = np.argmax(output_tokens[0, -1, :])
+            #print(sorted(output_tokens[0,0,:])[0:10])
             sampled_word = idx_to_words[sampled_word_index]
 
-            if i > max_decoder_seq_length or sampled_word=="<END>" or sampled_word=="<NULL>":
+            if i > max_decoder_seq_length or sampled_word == "<END>":
                 break
             decoded_sentence += sampled_word + " "
             target_seq = np.zeros((1, 1))
-            target_seq[0,0] = sampled_word_index
+            target_seq[0, 0] = sampled_word_index
             states_value = [h, c]
         decoded_sentences.append(decoded_sentence)
 
     return decoded_sentences
 
 
-train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
+train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
 story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
@@ -133,11 +128,12 @@ for story in input_senteces:
 
     original_sentences.append(st)
 
+beam_size = 3
 
 decoded = decode_sequence(encoder_batch_input_data)
 for i in range(5):
-    score = sentence_bleu([original_sentences[i]],decoded[i])
+    #score = sentence_bleu([original_sentences[i]],decoded[i])
     print("Original", original_sentences[i])
     print("Decoded", decoded[i])
-    print(score)
+    #print(score)
 
