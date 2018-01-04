@@ -8,12 +8,12 @@ import h5py
 import json
 #from nltk.translate.bleu_score import  sentence_bleu
 
-latent_dim = 256
-num_of_stacked_rnn = 2
+latent_dim = 10
+num_of_stacked_rnn = 1
 
-model = load_model("trained_models/2018-01-03_11:42:14-2018-01-03_12:57:35:image_to_text.h5")
+model = load_model("trained_models/2018-01-04_10:46:43-2018-01-04_10:53:21:image_to_text.h5")
 #print(model.layers)
-#plot_model(model, to_file='model.png' , show_shapes= True)
+plot_model(model, to_file='model.png' , show_shapes= True)
 encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
 encoder_lstm_name="encoder_lstm_"
 
@@ -29,7 +29,7 @@ encoder_states = [state_h, state_c]
 encoder_model = Model(encoder_inputs, encoder_states)
 #plot_model(encoder_model, to_file='encoder_model.png' , show_shapes= True)
 
-decoder_inputs = Input(shape=(1,), name="input_2")
+decoder_inputs = Input(shape=(22,), name="input_2")
 
 embedding_layer = model.get_layer("embedding_layer")
 embedding_outputs = embedding_layer(decoder_inputs)
@@ -73,7 +73,7 @@ def decode_sequence(input_seq):
         decoded_sentence = ''
         states_value = encoder_model.predict(images)
 
-        target_seq = np.zeros((1, 1))
+        target_seq = np.zeros((1, 22))
         target_seq[0, 0] = words_to_idx["<START>"]
 
         stop_condition = False
@@ -87,10 +87,10 @@ def decode_sequence(input_seq):
             #print(sorted(output_tokens[0,0,:])[0:10])
             sampled_word = idx_to_words[sampled_word_index]
 
-            if i > max_decoder_seq_length or sampled_word == "<END>":
+            if i >= max_decoder_seq_length or sampled_word == "<END>":
                 break
             decoded_sentence += sampled_word + " "
-            target_seq = np.zeros((1, 1))
+            target_seq = np.zeros((1, 22))
             target_seq[0, 0] = sampled_word_index
             states_value = [h, c]
         decoded_sentences.append(decoded_sentence)
@@ -104,7 +104,7 @@ image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
 
 
-random_sample_index = np.random.randint(0, 4900)
+random_sample_index = 1
 input_id = story_ids[random_sample_index]
 input_images = image_embeddings[random_sample_index]
 
@@ -128,7 +128,6 @@ for story in input_senteces:
 
     original_sentences.append(st)
 
-beam_size = 3
 
 decoded = decode_sequence(encoder_batch_input_data)
 for i in range(5):
