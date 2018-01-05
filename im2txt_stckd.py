@@ -12,11 +12,10 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
     image_embeddings = train_file["image_embeddings"]
     story_sentences = train_file["story_sentences"]
     #num_samples = len(image_embeddings)
-    num_samples = 10
+    num_samples = 4000
     idx_to_words = vocab_json["idx_to_words"]
     encoder_batch_input_data = np.zeros((num_samples * samples_per_story, 5, 4096))
-    decoder_batch_input_data = np.zeros((num_samples * samples_per_story, 22),
-                                        dtype=np.int32)
+    decoder_batch_input_data = np.zeros((num_samples * samples_per_story, 22),dtype=np.int32)
     decoder_batch_target_data = np.zeros(
         (num_samples * samples_per_story, story_sentences.shape[2], len(idx_to_words)),
         dtype=np.int32)
@@ -56,17 +55,17 @@ train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
 batch_size = 1  # Batch size for training.
-epochs = 30  # Number of epochs to train for.
-latent_dim = 20  # Latent dimensionality of the encoding space.
+epochs = 300  # Number of epochs to train for.
+latent_dim = 512  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
-num_of_stacked_rnn = 2 # Number of Stacked RNN layers
+num_of_stacked_rnn = 1 # Number of Stacked RNN layers
 
 
 learning_rate = 0.001
-gradient_clip_value = 5.0
+gradient_clip_value = 10.0
 
 #num_samples = len(train_file["story_ids"])
-num_samples = 10
+num_samples = 4000
 num_decoder_tokens = len(vocab_json['idx_to_words'])
 valid_steps = len(valid_file["story_ids"])/batch_size
 
@@ -77,8 +76,8 @@ print('Vocab size: ', num_decoder_tokens)
 
 # Shape (num_samples, 4096), 4096 is the image embedding length
 encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
-# mask_layer = Masking(mask_value=0, name="mask_layer")
-# mask_tensor = mask_layer(encoder_inputs)
+mask_layer = Masking(mask_value=0, name="mask_layer")
+mask_tensor = mask_layer(encoder_inputs)
 
 encoder_lstm_name="encoder_lstm_"
 
