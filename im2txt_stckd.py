@@ -9,31 +9,37 @@ import time
 import datetime
 
 def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_captioning=False):
-    image_embeddings = train_file["image_embeddings"]
-    story_sentences = train_file["story_sentences"]
-    #num_samples = len(image_embeddings)
-    num_samples = 4000
-    idx_to_words = vocab_json["idx_to_words"]
-    encoder_batch_input_data = np.zeros((num_samples * samples_per_story, 5, 4096))
-    decoder_batch_input_data = np.zeros((num_samples * samples_per_story, 22),dtype=np.int32)
-    decoder_batch_target_data = np.zeros(
-        (num_samples * samples_per_story, story_sentences.shape[2], len(idx_to_words)),
-        dtype=np.int32)
+    while 1:
+        image_embeddings = train_file["image_embeddings"]
+        story_sentences = train_file["story_sentences"]
+        num_samples = 4000
+        idx_to_words = vocab_json["idx_to_words"]
+        encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
+        decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22),
+                                            dtype=np.int32)
+        decoder_batch_target_data = np.zeros(
+            (batch_size * samples_per_story, story_sentences.shape[2], len(idx_to_words)),
+            dtype=np.int32)
+        for i in range(num_samples):
 
-    for i in range(num_samples):
+            if not(is_captioning):
+                for j in range(samples_per_story):
 
-        for j in range(samples_per_story):
+                    encoder_row_start_range = ((i % batch_size) * samples_per_story) + j
+                    encoder_row_end_range = ((i % batch_size) * samples_per_story) + 5
+                    encoder_batch_input_data[encoder_row_start_range: encoder_row_end_range, j] = image_embeddings[i][j]
 
-            encoder_row_start_range = (i * samples_per_story) + j
-            encoder_row_end_range = (i * samples_per_story) + 5
-            encoder_batch_input_data[encoder_row_start_range: encoder_row_end_range, j] = image_embeddings[i][j]
+                    decoder_row = (i % batch_size) * samples_per_story + j
 
-            decoder_row = i * samples_per_story + j
+                    temp_story = story_sentences[i][j].tolist()
+                    end_index = temp_story.index(2)
+                    temp_story[end_index] = 0
+                    decoder_batch_input_data[decoder_row] = np.array(temp_story)
 
-            temp_story = story_sentences[i][j].tolist()
-            end_index = temp_story.index(2)
-            temp_story[end_index] = 0
-            decoder_batch_input_data[decoder_row] = np.array(temp_story)
+            else:
+                for j in range(samples_per_story):
+                    encoder_batch_input_data[((i % batch_size) * samples_per_story) + j, 0] = image_embeddings[i][j]
+                    decoder_batch_input_data[(i % batch_size) * samples_per_story + j] = story_sentences[i][j]
 
             story = story_sentences[i]
             for sentence_index in range(len(story)):
@@ -41,21 +47,25 @@ def generate_input(train_file, vocab_json, batch_size, samples_per_story=5, is_c
                 for word_index in range(len(sentence)):
                     if word_index > 0:
                         decoder_batch_target_data[
-                            (i * samples_per_story) + sentence_index, word_index - 1, sentence[
+                            ((i % batch_size) * samples_per_story) + sentence_index, word_index - 1, sentence[
                                 word_index]] = 1
 
+            if ((i + 1) % batch_size) == 0 and i != 0:
+                yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-
-
-    return [encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data
+                encoder_batch_input_data = np.zeros((batch_size * samples_per_story, 5, 4096))
+                decoder_batch_input_data = np.zeros((batch_size * samples_per_story, 22), dtype= np.int32)
+                decoder_batch_target_data = np.zeros(
+                  (batch_size * samples_per_story, story_sentences.shape[2], len(vocab_json['idx_to_words'])),
+                  dtype=np.int32)
 
 
 vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5','r')
 valid_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5','r')
 
-batch_size = 1  # Batch size for training.
-epochs = 300  # Number of epochs to train for.
+batch_size = 10  # Batch size for training.
+epochs = 1  # Number of epochs to train for.
 latent_dim = 512  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
 num_of_stacked_rnn = 1 # Number of Stacked RNN layers
@@ -122,9 +132,9 @@ model.compile(optimizer = optimizer, loss='categorical_crossentropy')
 checkpoint_name=start_time+"checkpoit.hdf5"
 checkpointer = ModelCheckpoint(filepath='./checkpoints/'+checkpoint_name, verbose=1, save_best_only=True)
 csv_logger = CSVLogger(start_time+".csv", separator=',', append=False)
-x, y = generate_input(train_file,vocab_json, batch_size, is_captioning=False)
-model.fit(x, y, steps_per_epoch = 1, epochs = epochs, callbacks=[checkpointer, csv_logger])
-
+generate_input(train_file,vocab_json, batch_size, is_captioning=False)
+model.fit_generator(generate_input(train_file,vocab_json, batch_size, is_captioning=False), steps_per_epoch = num_samples / batch_size, epochs = epochs,
+                    validation_data=generate_input(valid_file,vocab_json,batch_size, is_captioning=False), validation_steps=valid_steps, callbacks=[checkpointer, csv_logger])
 ts = time.time()
 end_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
 
