@@ -7,6 +7,7 @@ from glob import glob
 from PIL import Image
 import cv2
 import textwrap
+import os
 
 
 
@@ -28,8 +29,8 @@ class StoryPlot:
 
         story = sorted(story, key=lambda k: k['worker_arranged_photo_order'])
         story_image_filenames = [''] * len(story)
-        print(story)
-        for filename in glob(self.images_root_folder_path + '/*.jpg'):
+        image_paths = [y for x in os.walk(self.images_root_folder_path) for y in glob(os.path.join(x[0], "*.jpg"))]
+        for filename in image_paths:
             for i in range(len(story)):
                 if story[i]['photo_flickr_id'] in filename:
                     story_image_filenames[i] = filename
