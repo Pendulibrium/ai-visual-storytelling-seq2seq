@@ -10,6 +10,7 @@ dataset/vist_sis/
 trained_models/
 loss_logs/
 checkpoints/
+glove.6B.300d.txt
 dataset/image_embeddings_to_sentence/
 # C extensions
 *.so
