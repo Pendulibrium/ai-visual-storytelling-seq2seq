@@ -73,10 +73,12 @@ class ModelDataGenerator:
                 if ((i + 1) % story_batch_size) == 0 and i != 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-                    encoder_batch_input_data.fill(0.0)
-                    decoder_batch_input_data.fill(0)
-                    decoder_batch_target_data.fill(0)
-
+                    encoder_batch_input_data = np.zeros(
+                        (approximate_batch_size, self.story_length, self.image_embeddings_size))
+                    decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
+                    decoder_batch_target_data = np.zeros(
+                        (approximate_batch_size, self.sentences_length, self.number_of_tokens),
+                        dtype=np.int32)
     '''
         Generate only one sample per story, all images included in the sample.
     '''
@@ -112,9 +114,12 @@ class ModelDataGenerator:
                 if ((i + 1) % self.batch_size) == 0 and i != 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-                    encoder_batch_input_data.fill(0.0)
-                    decoder_batch_input_data.fill(0)
-                    decoder_batch_target_data.fill(0)
+                    encoder_batch_input_data = np.zeros(
+                        (self.batch_size, self.story_length, self.image_embeddings_size))
+                    decoder_batch_input_data = np.zeros((self.batch_size, self.sentences_length), dtype=np.int32)
+                    decoder_batch_target_data = np.zeros(
+                        (self.batch_size, self.sentences_length, self.number_of_tokens),
+                        dtype=np.int32)
 
     '''
         Generate multiple samples from one story with only one image, mapping the image to the descirption of the image
@@ -165,14 +170,12 @@ class ModelDataGenerator:
 # model_generator = ModelDataGenerator(train_dataset, vocab_json, 64)
 # generator = model_generator.one_sample_from_story_generator(reverse= False)
 #
+#
+# total_samples = train_dataset
+#
+# for i in
 # batch_data = generator.next()
 #
 # image_embeddings = batch_data[0][0]
 # decoder_input = batch_data[0][1]
 # decoder_output = batch_data[1]
-#
-# image_embeddings_dataset = train_dataset['image_embeddings']
-#
-# for i in range(len(image_embeddings)):
-#     for j in range(5):
-#         print(np.array_equal(image_embeddings[i][j], image_embeddings_dataset[i][5-j-1]))
