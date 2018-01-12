@@ -154,9 +154,11 @@ class ModelDataGenerator:
                 if ((i + 1) % story_batch_size) == 0 and i != 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-                    encoder_batch_input_data.fill(0.0)
-                    decoder_batch_input_data.fill(0)
-                    decoder_batch_target_data.fill(0)
+                    encoder_batch_input_data = np.zeros((approximate_batch_size, 1, self.image_embeddings_size))
+                    decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
+                    decoder_batch_target_data = np.zeros(
+                        (approximate_batch_size, self.sentences_length, self.number_of_tokens),
+                        dtype=np.int32)
 
 # vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 # train_dataset = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')

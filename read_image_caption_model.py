@@ -12,7 +12,7 @@ import json
 latent_dim = 512
 num_of_stacked_rnn = 2
 
-model = load_model()
+model = load_model("trained_models/2018-01-12_10:43:10-2018-01-12_10:47:39:image_to_text_gru.h5")
 # print(model.layers)
 # plot_model(model, to_file='model.png' , show_shapes= True)
 encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
@@ -60,7 +60,7 @@ def decode_sequence(input_seq):
 
     for images in input_seq:
 
-        images = images.reshape((1, 5, 4096))
+        images = images.reshape((1, 1, 4096))
 
         decoded_sentence = ''
         states_value = encoder_model.predict(images)
@@ -99,7 +99,7 @@ def decode_sequence(input_seq):
     return decoded_sentences
 
 
-train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_test.hdf5', 'r')
+train_file = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
 story_ids = train_file["story_ids"]
 image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
