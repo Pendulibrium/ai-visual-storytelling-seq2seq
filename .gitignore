@@ -8,6 +8,7 @@ __pycache__/
 vist_dataset/
 dataset/vist_sis/
 trained_models/
+Graph/
 loss_logs/
 checkpoints/
 glove.6B.300d.txt
