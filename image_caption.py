@@ -43,9 +43,9 @@ for line in f:
 f.close()
 
 print('Found %s word vectors.' % len(embeddings_index))
-embedding_matrix = np.zeros((train_generator.number_of_tokens, word_embedding_size))
+embedding_matrix = np.random.normal(size=(train_generator.number_of_tokens, word_embedding_size))
 for word, i in words_to_idx.items():
-    embedding_vector = embeddings_index.get(word)
+    embedding_vector = embeddings_index.get(word.replace('[', '').replace(']',''))
     if embedding_vector is not None:
         embedding_matrix[i]=embedding_vector
 
