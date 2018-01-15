@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import keras
 
 
 def vec_to_sentence(sentence_vec, idx_to_word):
@@ -32,3 +33,17 @@ def one_hot_vec_to_sentence(sentence_vec, idx_to_word):
             words.append(idx_to_word[word_idx])
 
     return " ".join(words)
+
+
+class Bleu_Score_Callback(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        return
+    def on_train_end(self, logs={}):
+        return
+    def on_epoch_end(self, epoch, logs={}):
+     #self.losses.append(logs.get('loss'))
+     validation_data = self.model.validation_data[0]
+     print(validation_data.shape)
+     #print("Hi")
+
+     return
