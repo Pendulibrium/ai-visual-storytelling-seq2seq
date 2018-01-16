@@ -22,7 +22,7 @@ batch_size = 13
 epochs = 100 # Number of epochs to train for.
 latent_dim = 1024  # Latent dimensionality of the encoding space.
 word_embedding_size = 300 # Size of the word embedding space.
-num_of_stacked_rnn = 1 # Number of Stacked RNN layers
+num_of_stacked_rnn = 2 # Number of Stacked RNN layers
 
 
 learning_rate = 0.0001

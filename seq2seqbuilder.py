@@ -8,10 +8,7 @@ class Seq2SeqBuilder:
     def __init__(self):
         return
 
-
-    def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
-                    encoder_input_shape, decoder_input_shape, cell_type, masking=False):
-
+    def get_embedding_layer(self, words_to_idx, word_embedding_size, num_tokens, decoder_input_shape):
         embeddings_index = {}
         # GLOVE word weights for 6 billion words for word_embedding_size = 300
         f = open('glove.6B.300d.txt')
@@ -32,6 +29,19 @@ class Seq2SeqBuilder:
             embedding_vector = embeddings_index.get(word.replace('[', '').replace(']', ''))
             if embedding_vector is not None:
                 embedding_matrix[i] = embedding_vector
+
+        # Embedding layer that we don't train
+        embedding_layer = Embedding(num_tokens, word_embedding_size,
+                                    weights=[embedding_matrix],
+                                    input_length=decoder_input_shape[0],
+                                    mask_zero=True,
+                                    trainable=False,
+                                    name="embedding_layer")
+
+        return embedding_layer
+
+    def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
+                    encoder_input_shape, decoder_input_shape, cell_type, masking=False):
 
 
         # Shape (num_samples, 4096), 4096 is the image embedding length
@@ -62,13 +72,7 @@ class Seq2SeqBuilder:
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
 
         # Embedding layer that we don't train
-        embedding_layer = Embedding(num_tokens, word_embedding_size,
-                                    weights=[embedding_matrix],
-                                    input_length=decoder_input_shape[0],
-                                    mask_zero=True,
-                                    trainable=False,
-                                    name="embedding_layer")
-
+        embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens, decoder_input_shape)
         embedding_outputs = embedding_layer(decoder_inputs)
 
         # Defining decoder layer

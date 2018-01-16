@@ -36,7 +36,6 @@ class ModelDataGenerator:
     '''
 
     def multiple_samples_per_story_generator(self, reverse=False):
-        print("generate image sequences from story")
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
         approximate_batch_size = story_batch_size * self.story_length  # Actual batch size
