@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, RNN
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 import numpy as np
@@ -43,6 +43,12 @@ class Seq2SeqBuilder:
     def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
                     encoder_input_shape, decoder_input_shape, cell_type, masking=False):
 
+        # Flag that tells us how many states does the RNN return (RNN, LSTM return 2 states, GRU returns 1 state)
+        output_type = 0
+        if LSTM == cell_type or RNN == cell_type:
+            output_type = 2
+        else:
+            output_type = 1
 
         # Shape (num_samples, 4096), 4096 is the image embedding length
         encoder_inputs = Input(shape=encoder_input_shape, name="encoder_input_layer")
@@ -61,12 +67,21 @@ class Seq2SeqBuilder:
             else:
                 encoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name + str(i))
 
-            if i == 0:
-                encoder_outputs, states = encoder(encoder_inputs)
+            if output_type == 2:
+                if i == 0:
+                    encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+                else:
+                    encoder_outputs, state_h, state_c = encoder(encoder_outputs)
             else:
-                encoder_outputs, states = encoder(encoder_outputs)
+                if i == 0:
+                    encoder_outputs, state_h = encoder(encoder_inputs)
+                else:
+                    encoder_outputs, state_h = encoder(encoder_outputs)
 
-        encoder_states = states
+        if output_type == 2:
+            encoder_states = [state_h, state_c]
+        else:
+            encoder_states = state_h
 
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
@@ -79,12 +94,19 @@ class Seq2SeqBuilder:
         decoder_lstm_name = "decoder_layer_"
 
         for i in range(0, num_stacked):
-            decoder_gru = cell_type(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name + str(i))
+            decoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name + str(i))
 
-            if i == 0:
-                decoder_outputs, _ = decoder_gru(embedding_outputs, initial_state=encoder_states)
+            if output_type == 2:
+                if i == 0:
+                    decoder_outputs, _, _ = decoder(embedding_outputs, initial_state=encoder_states)
+                else:
+                    decoder_outputs, _, _ = decoder(decoder_outputs)
+
             else:
-                decoder_outputs, _ = decoder_gru(decoder_outputs)
+                if i == 0:
+                    decoder_outputs, _ = decoder(embedding_outputs, initial_state=encoder_states)
+                else:
+                    decoder_outputs, _ = decoder(decoder_outputs)
 
         decoder_dense = TimeDistributed(Dense(num_tokens, activation='softmax'), name="dense_layer")
         decoder_outputs = decoder_dense(decoder_outputs)
