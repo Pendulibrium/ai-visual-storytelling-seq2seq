@@ -1,0 +1,13 @@
+Visual Story Telling
+
+1) Check if the learning rate was the cause of not achieving an overfiting
+2) Check if pre-trained embedding layers was the cause of not achieving an overfiting
+3) Check if the masking layer was the cause of not achieveing an overfitting
+4) Try with masking layer in the encoder model
+5) Try with 3 layers wit latent dimension of 512
+6) Try with 2 layers with latent dimension of 1024
+7) Try with 3 layers with latent dimension of 1024
+8) Try adding dropout (read about effecient dropout in RNN networks), should we add them to the reccurent layer or the input layer.
+9) Try to reverse the image embeddings
+10) Shuffle the training samples
+11)
