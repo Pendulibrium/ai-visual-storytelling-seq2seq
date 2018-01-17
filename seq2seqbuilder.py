@@ -67,21 +67,13 @@ class Seq2SeqBuilder:
             else:
                 encoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name + str(i))
 
-            if output_type == 2:
-                if i == 0:
-                    encoder_outputs, state_h, state_c = encoder(encoder_inputs)
-                else:
-                    encoder_outputs, state_h, state_c = encoder(encoder_outputs)
+            if i == 0:
+                encoder_outputs = encoder(encoder_inputs)
             else:
-                if i == 0:
-                    encoder_outputs, state_h = encoder(encoder_inputs)
-                else:
-                    encoder_outputs, state_h = encoder(encoder_outputs)
+                encoder_outputs= encoder(encoder_outputs[0])
 
-        if output_type == 2:
-            encoder_states = [state_h, state_c]
-        else:
-            encoder_states = state_h
+        encoder_states = encoder_outputs[1:]
+
 
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
@@ -96,20 +88,13 @@ class Seq2SeqBuilder:
         for i in range(0, num_stacked):
             decoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name + str(i))
 
-            if output_type == 2:
-                if i == 0:
-                    decoder_outputs, _, _ = decoder(embedding_outputs, initial_state=encoder_states)
-                else:
-                    decoder_outputs, _, _ = decoder(decoder_outputs)
-
+            if i == 0:
+                decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
             else:
-                if i == 0:
-                    decoder_outputs, _ = decoder(embedding_outputs, initial_state=encoder_states)
-                else:
-                    decoder_outputs, _ = decoder(decoder_outputs)
+                decoder_outputs = decoder(decoder_outputs[0])
 
         decoder_dense = TimeDistributed(Dense(num_tokens, activation='softmax'), name="dense_layer")
-        decoder_outputs = decoder_dense(decoder_outputs)
+        decoder_outputs = decoder_dense(decoder_outputs[0])
 
         model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
         return model
