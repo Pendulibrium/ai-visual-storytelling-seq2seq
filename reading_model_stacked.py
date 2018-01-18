@@ -6,25 +6,25 @@ from keras.utils import plot_model
 import numpy as np
 import h5py
 import json
-#from nltk.translate.bleu_score import  sentence_bleu
+from nltk.translate.bleu_score import  sentence_bleu
 
-latent_dim = 10
-num_of_stacked_rnn = 1
+latent_dim = 512
+num_of_stacked_rnn = 2
 
-model = load_model("trained_models/2018-01-04_10:46:43-2018-01-04_10:53:21:image_to_text.h5")
+model = load_model("trained_models/2018-01-17_11:13:42-2018-01-18_02:23:25:image_to_text_gru.h5")
 #print(model.layers)
-plot_model(model, to_file='model.png' , show_shapes= True)
+#plot_model(model, to_file='model.png' , show_shapes= True)
 encoder_inputs = Input(shape=(None, 4096), name="encoder_input_layer")
-encoder_lstm_name="encoder_lstm_"
+encoder_lstm_name="encoder_layer_"
 
 for i in range(num_of_stacked_rnn):
     encoder_lstm = model.get_layer(encoder_lstm_name+str(i))
     if i == 0:
-        encoder_outputs, state_h, state_c = encoder_lstm(encoder_inputs)
+        encoder_outputs, state_h = encoder_lstm(encoder_inputs)
     else:
-        encoder_outputs, state_h, state_c = encoder_lstm(encoder_outputs)
+        encoder_outputs, state_h = encoder_lstm(encoder_outputs)
 
-encoder_states = [state_h, state_c]
+encoder_states = [state_h]
 
 encoder_model = Model(encoder_inputs, encoder_states)
 #plot_model(encoder_model, to_file='encoder_model.png' , show_shapes= True)
@@ -35,19 +35,19 @@ embedding_layer = model.get_layer("embedding_layer")
 embedding_outputs = embedding_layer(decoder_inputs)
 print("Embed",embedding_outputs.shape)
 
-decoder_lstm_name="decoder_lstm_"
+decoder_lstm_name="decoder_layer_"
 decoder_state_input_h = Input(shape=(latent_dim,), name="input_3")
 decoder_state_input_c = Input(shape=(latent_dim,), name="input_4")
-decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+decoder_states_inputs = [decoder_state_input_h]
 
 for i in range(num_of_stacked_rnn):
     decoder_lstm = model.get_layer(decoder_lstm_name + str(i))
     if i == 0:
-        decoder_outputs, state_h, state_c = decoder_lstm(embedding_outputs, initial_state=decoder_states_inputs)
-        decoder_states = [state_h, state_c]
-    else:
-        decoder_outputs, state_h, state_c = decoder_lstm(decoder_outputs)
-        decoder_states = [state_h, state_c]
+        decoder_outputs, state_h = decoder_lstm(embedding_outputs, initial_state=decoder_states_inputs)
+    else:sssssssssssssssssssssss
+        decoder_outputs, state_h = decoder_lstm(decoder_outputs)
+
+    decoder_states = [state_h]
 
 
 decoder_dense = model.get_layer("dense_layer")
@@ -72,6 +72,7 @@ def decode_sequence(input_seq):
 
         decoded_sentence = ''
         states_value = encoder_model.predict(images)
+        states_value = [states_value]
 
         target_seq = np.zeros((1, 22))
         target_seq[0, 0] = words_to_idx["<START>"]
@@ -82,7 +83,7 @@ def decode_sequence(input_seq):
         while not stop_condition:
             i += 1
 
-            output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
+            output_tokens, h = decoder_model.predict([target_seq] + states_value)
             sampled_word_index = np.argmax(output_tokens[0, -1, :])
             #print(sorted(output_tokens[0,0,:])[0:10])
             sampled_word = idx_to_words[sampled_word_index]
@@ -92,7 +93,7 @@ def decode_sequence(input_seq):
             decoded_sentence += sampled_word + " "
             target_seq = np.zeros((1, 22))
             target_seq[0, 0] = sampled_word_index
-            states_value = [h, c]
+            states_value = [h]
         decoded_sentences.append(decoded_sentence)
 
     return decoded_sentences
@@ -104,7 +105,7 @@ image_embeddings = train_file["image_embeddings"]
 story_sentences = train_file["story_sentences"]
 
 
-random_sample_index = 1
+random_sample_index = np.random.randint(10000)
 input_id = story_ids[random_sample_index]
 input_images = image_embeddings[random_sample_index]
 
@@ -131,8 +132,8 @@ for story in input_senteces:
 
 decoded = decode_sequence(encoder_batch_input_data)
 for i in range(5):
-    #score = sentence_bleu([original_sentences[i]],decoded[i])
+    score = sentence_bleu([original_sentences[i]],decoded[i])
     print("Original", original_sentences[i])
     print("Decoded", decoded[i])
-    #print(score)
+    print(score)
 
