@@ -71,7 +71,7 @@ class Seq2SeqBuilder:
 
 
         # Decoder input, should be shape (num_samples, 22)
-        decoder_inputs = Input(shape=(None,), name="decoder_input_layer")
+        decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
 
         # Embedding layer that we don't train
         embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens, decoder_input_shape)
