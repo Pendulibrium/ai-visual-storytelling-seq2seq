@@ -113,11 +113,11 @@ class Seq2SeqBuilder:
         # plot_model(model, to_file='model.png' , show_shapes= True)
 
         encoder_inputs = Input(shape=model.get_layer("encoder_input_layer").get_config()['batch_input_shape'][1:])
-        encoder_lstm_prefix = "encoder_lstm_"
+        encoder_lstm_prefix = "encoder_layer_"
         num_encoder = self.get_number_of_layers(model, encoder_lstm_prefix)
-
+        print("num: ", num_encoder)
         for i in range(num_encoder):
-            encoder = model.get_layer(encoder_lstm_prefix + str(0))
+            encoder = model.get_layer(encoder_lstm_prefix + str(i))
             if i == 0:
                 encoder_outputs = encoder(encoder_inputs)
                 latent_dim = encoder.get_config()['units']
@@ -132,8 +132,8 @@ class Seq2SeqBuilder:
         embedding_layer = model.get_layer("embedding_layer")
         embedding_outputs = embedding_layer(decoder_inputs)
 
-        decoder_prefix = "decoder_lstm_"
-        num_decoder = self.get_number_of_layers(model, encoder_lstm_prefix)
+        decoder_prefix = "decoder_layer_"
+        num_decoder = self.get_number_of_layers(model, decoder_prefix)
         decoder_state_input_h = Input(shape=(latent_dim,))
         decoder_state_input_c = Input(shape=(latent_dim,))
         if len(encoder_states) == 1:
@@ -142,7 +142,7 @@ class Seq2SeqBuilder:
             decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
 
         for i in range(num_decoder):
-            decoder = model.get_layer(decoder_prefix + str(0))
+            decoder = model.get_layer(decoder_prefix + str(i))
             if i == 0:
                 decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs)
             else:
