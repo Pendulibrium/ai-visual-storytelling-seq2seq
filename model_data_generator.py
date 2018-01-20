@@ -22,6 +22,7 @@ class ModelDataGenerator:
         self.sentences_length = self.story_sentences.shape[2]
 
         self.num_samples = self.image_embeddings.shape[0]
+
         if num_samples_per_epoch is not None:
             self.num_samples = num_samples_per_epoch
 
@@ -35,7 +36,7 @@ class ModelDataGenerator:
         if you sent batch_size 64 it will generate the batch size of 65.
     '''
 
-    def multiple_samples_per_story_generator(self, reverse=False):
+    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False):
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
         approximate_batch_size = story_batch_size * self.story_length  # Actual batch size
@@ -78,6 +79,9 @@ class ModelDataGenerator:
                     decoder_batch_target_data = np.zeros(
                         (approximate_batch_size, self.sentences_length, self.number_of_tokens),
                         dtype=np.int32)
+            if only_one_epoch:
+                raise StopIteration()
+
     '''
         Generate only one sample per story, all images included in the sample.
     '''
