@@ -70,9 +70,10 @@ class ModelDataGenerator:
                             decoder_row = ((i % story_batch_size) * self.story_length) + sentence_index
                             decoder_batch_target_data[decoder_row, word_index - 1, sentence[word_index]] = 1
 
-                if ((i + 1) % story_batch_size) == 0 and i != 0:
+                if (i + 1) % story_batch_size == 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
-
+                    for sen in decoder_batch_input_data:
+                        print("Generator: ", nlp.vec_to_sentence(sen, self.vocab_json['idx_to_words']))
                     encoder_batch_input_data = np.zeros(
                         (approximate_batch_size, self.story_length, self.image_embeddings_size))
                     decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
@@ -114,7 +115,7 @@ class ModelDataGenerator:
                     if word_index > 0:
                         decoder_batch_target_data[i % self.batch_size, word_index - 1, sentence[word_index]] = 1
 
-                if ((i + 1) % self.batch_size) == 0 and i != 0:
+                if (i + 1) % self.batch_size == 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
                     encoder_batch_input_data = np.zeros(
@@ -159,7 +160,7 @@ class ModelDataGenerator:
                             decoder_row = ((i % story_batch_size) * self.story_length) + sentence_index
                             decoder_batch_target_data[decoder_row, word_index - 1, sentence[word_index]] = 1
 
-                if ((i + 1) % story_batch_size) == 0 and i != 0:
+                if (i + 1) % story_batch_size == 0:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
                     encoder_batch_input_data = np.zeros((approximate_batch_size, 1, self.image_embeddings_size))
