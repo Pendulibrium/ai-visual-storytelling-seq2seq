@@ -113,13 +113,18 @@ class Seq2SeqBuilder:
         # plot_model(model, to_file='model.png' , show_shapes= True)
 
         encoder_inputs = Input(shape=model.get_layer("encoder_input_layer").get_config()['batch_input_shape'][1:])
+        print("encoder inputs shape: ", encoder_inputs.shape)
+
+        mask_layer = Masking(mask_value=0, name="mask_layer")
+        mask_output = mask_layer(encoder_inputs)
+
         encoder_lstm_prefix = "encoder_layer_"
         num_encoder = self.get_number_of_layers(model, encoder_lstm_prefix)
         print("num: ", num_encoder)
         for i in range(num_encoder):
             encoder = model.get_layer(encoder_lstm_prefix + str(i))
             if i == 0:
-                encoder_outputs = encoder(encoder_inputs)
+                encoder_outputs = encoder(mask_output)
                 latent_dim = encoder.get_config()['units']
             else:
                 encoder_outputs = encoder(encoder_outputs[0])
@@ -134,21 +139,26 @@ class Seq2SeqBuilder:
 
         decoder_prefix = "decoder_layer_"
         num_decoder = self.get_number_of_layers(model, decoder_prefix)
-        decoder_state_input_h = Input(shape=(latent_dim,))
+        decoder_state_input_h1 = Input(shape=(latent_dim,))
+        decoder_state_input_h2 = Input(shape=(latent_dim,))
         decoder_state_input_c = Input(shape=(latent_dim,))
-        if len(encoder_states) == 1:
-            decoder_states_inputs = [decoder_state_input_h]
-        else:
-            decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
 
+        if len(encoder_states) == 1:
+            decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
+        else:
+            decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
+
+        decoder_states = []
         for i in range(num_decoder):
             decoder = model.get_layer(decoder_prefix + str(i))
             if i == 0:
-                decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs)
+                decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
+                decoder_states = decoder_states + list(decoder_outputs[1:])
             else:
-                decoder_outputs = decoder(decoder_outputs[0])
+                decoder_outputs = decoder(decoder_outputs[0], initial_state =decoder_states_inputs[i])
+                decoder_states = decoder_states + list(decoder_outputs[1:])
 
-        decoder_states = list(decoder_outputs[1:])
+        #decoder_states = list(decoder_outputs[1:])
 
         decoder_dense = model.get_layer("dense_layer")
         decoder_outputs = decoder_dense(decoder_outputs[0])

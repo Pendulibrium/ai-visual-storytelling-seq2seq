@@ -7,6 +7,8 @@ import numpy as np
 import h5py
 import json
 from nltk.translate.bleu_score import sentence_bleu
+from model_data_generator import ModelDataGenerator
+from nlp import nlp
 
 
 class Inference:
@@ -112,67 +114,49 @@ class Inference:
 
         decoded_sentences = np.zeros((num_stories, sentence_length), dtype='int32')
         states_value = self.encoder_model.predict(input_sequence)
-        states_value = [states_value]
+        states_value = [states_value, np.zeros(states_value.shape)]  # TODO: check if the type is list
 
-        target_seq = np.zeros((num_stories, 1))
+        target_seq = np.zeros((num_stories, 1), dtype='int32')
         target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
 
         stop_condition = False
         i = 0
 
         while not stop_condition:
-             output_tokens, h = self.decoder_model.predict([target_seq] + states_value)
+            # TODO: this is not done properly
+            output_tokens, h1, h2 = self.decoder_model.predict([target_seq] + states_value)
+            print("print the type of h")
+            sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
 
-             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1)
-             print(sampled_word_index)
+            if i >= sentence_length:
+                break
 
-             if i >= sentence_length:
-                 break
+            decoded_sentences[:, i] = sampled_word_index
+            target_seq[0:num_stories, 0] = sampled_word_index
 
-             decoded_sentences[:, i] = sampled_word_index.astype(dtype='int32')
-             target_seq = np.zeros((num_stories, 1))
-             target_seq[0:num_stories, 0] = sampled_word_index.astype(dtype='int32')
-             states_value = [h]
-             i += 1
+            states_value = [h1, h2]
+            i += 1
 
         return decoded_sentences
 
-    def predict_all(self, start_index, end_index, number_of_sentences=5, sentence_length=22, number_of_images=5, img_embedding_length=4096):
-        num_stories = end_index - start_index
-        input_id = self.story_ids[start_index:end_index]
-        input_images = self.image_embeddings[start_index:end_index]
-        input_sentences = self.story_sentences[start_index:end_index]
-        print(input_id)
+    # "Why we don't use the generator"?
+    # TODO: If we send start_index = 0 and end index is the last story then we will have memory overflow
+    def predict_all(self, batch_size, start_index, end_index, number_of_sentences=5, sentence_length=22,
+                    number_of_images=5, img_embedding_length=4096):
 
-        encoder_batch_input_data = np.zeros((number_of_sentences * num_stories, number_of_images, img_embedding_length))
-        print(encoder_batch_input_data.shape)
-        print("input_images shape: ", input_images.shape)
-        for k in range(num_stories):
-            for j in range(number_of_images):
-                encoder_batch_input_data[(k*j)+j:(k*j)+5, j] = input_images[k][j]
+        data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
+        count = 0
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
 
+            encoder_batch_input_data = batch[0][0]
+            original_sentences_input = batch[0][1]
 
-        original_sentences = []
-
-        for j in range(num_stories):
-            for story in input_sentences[j]:
-                st=''
-                for word in story:
-                    if not (self.idx_to_words[word] == "<START>" or self.idx_to_words[word] == "<END>" or self.idx_to_words[word]=="<NULL>"):
-                        st += self.idx_to_words[word] + " "
-
-                original_sentences.append(st)
-
-
-        decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
-        # #print(len(decoded))
-        for i in range(number_of_sentences * num_stories):
-            #score = sentence_bleu([original_sentences[i]],decoded[i])
-            #print(i)
-             print("Original", original_sentences[i])
-             print("Decoded", self.vec_to_sentence(decoded[i], self.idx_to_words))
-             #print(score)
-        return
+            decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
+            # encoder_batch_input_data = encoder_batch_input_data[0:1,]
+            for i in range(encoder_batch_input_data.shape[0]):
+                print("Original", nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words))
+                print("Decoded", self.vec_to_sentence(decoded[i], self.idx_to_words))
+            break
 
     def vec_to_sentence(self, sentence_vec, idx_to_word):
         """ Return human readable sentence of given sentence vector
