@@ -9,6 +9,7 @@ import json
 from nltk.translate.bleu_score import sentence_bleu
 from model_data_generator import ModelDataGenerator
 from nlp import nlp
+from seq2seqbuilder import Seq2SeqBuilder
 
 
 class Inference:
@@ -24,6 +25,7 @@ class Inference:
         self.encoder_model = encoder_model
         self.decoder_model = decoder_model
         self.vocab_size = len(self.words_to_idx)
+        self.num_stacked_layers = Seq2SeqBuilder().get_number_of_layers(encoder_model,layer_prefix="encoder_layer_")
 
         return
 
@@ -108,13 +110,17 @@ class Inference:
         # returns sentence in integer list, should fix this
         return decoded_sentences, scores
 
-    def predict_batch(self, input_sequence, sentence_length):
+    def predict_batch(self, input_sequence, sentence_length, ):
 
         num_stories = input_sequence.shape[0]
 
         decoded_sentences = np.zeros((num_stories, sentence_length), dtype='int32')
         states_value = self.encoder_model.predict(input_sequence)
-        states_value = [states_value, np.zeros(states_value.shape)]  # TODO: check if the type is list
+        states_value_shape = states_value.shape
+        states_value = [states_value]
+        for i in range(self.num_stacked_layers-1):
+            states_value.append(np.zeros(states_value_shape))
+        # TODO: check if the type is list
 
         target_seq = np.zeros((num_stories, 1), dtype='int32')
         target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
@@ -123,9 +129,9 @@ class Inference:
         i = 0
 
         while not stop_condition:
-            # TODO: this is not done properly
-            output_tokens, h1, h2 = self.decoder_model.predict([target_seq] + states_value)
-            print("print the type of h")
+            output = self.decoder_model.predict([target_seq] + states_value)
+            output_tokens = output[0]
+
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
 
             if i >= sentence_length:
@@ -134,14 +140,14 @@ class Inference:
             decoded_sentences[:, i] = sampled_word_index
             target_seq[0:num_stories, 0] = sampled_word_index
 
-            states_value = [h1, h2]
+            states_value = output[1:]
             i += 1
 
         return decoded_sentences
 
     # "Why we don't use the generator"?
     # TODO: If we send start_index = 0 and end index is the last story then we will have memory overflow
-    def predict_all(self, batch_size, start_index, end_index, number_of_sentences=5, sentence_length=22,
+    def predict_all(self, batch_size, number_of_sentences=5, sentence_length=22,
                     number_of_images=5, img_embedding_length=4096):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
