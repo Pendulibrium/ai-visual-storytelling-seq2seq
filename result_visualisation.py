@@ -10,6 +10,7 @@ from nltk.translate.bleu_score import sentence_bleu
 from model_data_generator import ModelDataGenerator
 from nlp import nlp
 from seq2seqbuilder import Seq2SeqBuilder
+from nlp.scores import Scores, Score_Method
 
 
 class Inference:
@@ -147,8 +148,7 @@ class Inference:
 
     # "Why we don't use the generator"?
     # TODO: If we send start_index = 0 and end index is the last story then we will have memory overflow
-    def predict_all(self, batch_size, number_of_sentences=5, sentence_length=22,
-                    number_of_images=5, img_embedding_length=4096):
+    def predict_all(self, batch_size, sentence_length=22):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
@@ -157,24 +157,20 @@ class Inference:
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
 
+            references = []
+            hypotheses = []
+
             decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
             # encoder_batch_input_data = encoder_batch_input_data[0:1,]
             for i in range(encoder_batch_input_data.shape[0]):
-                print("Original", nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words))
-                print("Decoded", self.vec_to_sentence(decoded[i], self.idx_to_words))
+                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
+                hypotheses.append(original)
+                references.append(result)
+                print("Original", original)
+                print("Decoded", result)
             break
 
-    def vec_to_sentence(self, sentence_vec, idx_to_word):
-        """ Return human readable sentence of given sentence vector
+        print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
+        print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
 
-        Parameters
-
-        """
-        words = []
-        for word_idx in sentence_vec:
-            word = idx_to_word[word_idx]
-            if word == "<END>":
-                break
-            words.append(word)
-
-        return " ".join(words)

@@ -11,7 +11,14 @@ def vec_to_sentence(sentence_vec, idx_to_word):
     """
     words = []
     for word_idx in sentence_vec:
-        words.append(idx_to_word[word_idx])
+        word = idx_to_word[word_idx]
+
+        if word == "<START>":
+            continue
+        if word == "<END>" or word == "<NULL>":
+            break
+
+        words.append(word)
 
     return " ".join(words)
 
