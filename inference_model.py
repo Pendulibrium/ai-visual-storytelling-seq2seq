@@ -15,9 +15,11 @@ builder = Seq2SeqBuilder()
 encoder_model, decoder_model = builder.build_encoder_decoder_inference(
     "trained_models/2018-01-18_17:39:24-2018-01-20_18:50:39:image_to_text_gru.h5")
 
-inference = Inference('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5',
-                      './dataset/vist2017_vocabulary.json', encoder_model, decoder_model)
-inference.predict_all(batch_size=5)
+inference = Inference('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5',
+                       './dataset/vist2017_vocabulary.json', encoder_model, decoder_model)
+t=time.time()
+inference.predict_all_beam_search(batch_size=5, beam_size=10)
+print((time.time()-t)/60.0)
 # vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 # num_decoder_tokens = len(vocab_json['idx_to_words'])
 # words_to_idx = vocab_json["words_to_idx"]

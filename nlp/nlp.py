@@ -52,5 +52,4 @@ class Bleu_Score_Callback(keras.callbacks.Callback):
      validation_data = self.model.validation_data[0]
      print(validation_data.shape)
      #print("Hi")
-
      return

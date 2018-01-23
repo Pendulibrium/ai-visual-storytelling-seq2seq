@@ -205,6 +205,8 @@ class Inference:
                     result = nlp.vec_to_sentence(decoded[0][i][j], self.idx_to_words)
                     print("Decoded", result)
                 print(decoded[1][i])
+                max_score_index = np.argmin(decoded[1][i])
+                print("Decoded", decoded[0][i][max_score_index])
             break
     # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
     # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
