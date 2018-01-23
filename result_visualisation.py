@@ -26,7 +26,7 @@ class Inference:
         self.encoder_model = encoder_model
         self.decoder_model = decoder_model
         self.vocab_size = len(self.words_to_idx)
-        self.num_stacked_layers = Seq2SeqBuilder().get_number_of_layers(encoder_model,layer_prefix="encoder_layer_")
+        self.num_stacked_layers = Seq2SeqBuilder().get_number_of_layers(encoder_model, layer_prefix="encoder_layer_")
 
         return
 
@@ -123,7 +123,7 @@ class Inference:
         states_value = self.encoder_model.predict(input_sequence)
         states_value_shape = states_value.shape
         states_value = [states_value]
-        for i in range(self.num_stacked_layers-1):
+        for i in range(self.num_stacked_layers - 1):
             states_value.append(np.zeros(states_value_shape))
         # TODO: check if the type is list
 
@@ -159,14 +159,12 @@ class Inference:
         meteor_score = 0.0
         count = 0
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
-            count+=1
+            count += 1
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
 
             references = []
             hypotheses = []
-
-
 
             decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
             # encoder_batch_input_data = encoder_batch_input_data[0:1,]
@@ -175,17 +173,17 @@ class Inference:
                 result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(original)
                 references.append(result)
-                #print("Original", original)
-                #print("Decoded", result)
+                # print("Original", original)
+                # print("Decoded", result)
 
-            meteor_score += Scores().calculate_scores(Score_Method.METEOR, references,hypotheses)[1]
-            #bleu_score += Scores().calculate_scores(Score_Method.BLEU, references, hypotheses)[1]
+            meteor_score += Scores().calculate_scores(Score_Method.METEOR, references, hypotheses)[1]
+            # bleu_score += Scores().calculate_scores(Score_Method.BLEU, references, hypotheses)[1]
             print(str(count) + ":" + str(meteor_score))
 
         print("Total", meteor_score / (count * batch_size))
-        #print("Total", bleu_score/(count*batch_size))
-        #print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
-        #print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
+        # print("Total", bleu_score/(count*batch_size))
+        # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
+        # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
 
     def predict_all_beam_search(self, batch_size, beam_size=3, sentence_length=22):
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
@@ -208,5 +206,5 @@ class Inference:
                 max_score_index = np.argmin(decoded[1][i])
                 print("Decoded", decoded[0][i][max_score_index])
             break
-    # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
-    # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
+            # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
+            # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
