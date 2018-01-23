@@ -41,7 +41,7 @@ class Inference:
             output = self.decoder_model.predict([target_seq] + state_values[i])
 
             prob = output[0]
-            states = output[1]
+            states = output[1:]
             reshaped_prob = np.reshape(prob, (self.vocab_size))
             probs.append(reshaped_prob)
             new_states.append(list(states))
@@ -53,11 +53,10 @@ class Inference:
         decoded_sentences = []
         scores = []
         m = 1
-
         for images in input_sequence:
-
-            images = images.reshape((1, 5, 4096))
+            images = images.reshape(1, 5, 4096)
             state_value = self.encoder_model.predict(images)
+            state_value_shape = state_value.shape
             live_beam = 1
             live_sentence = [[self.words_to_idx["<START>"]]]
             live_score = [0]
@@ -67,7 +66,12 @@ class Inference:
             state_values = []
 
             for i in range(beam_size):
-                state_values.append(state_value)
+
+                state_value_tmp = [state_value]
+                for i in range(self.num_stacked_layers - 1):
+                    state_value_tmp.append(np.zeros(state_value_shape))
+
+                state_values.append(state_value_tmp)
 
             j = 0
 
@@ -183,3 +187,24 @@ class Inference:
         #print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
         #print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
 
+    def predict_all_beam_search(self, batch_size, beam_size=3, sentence_length=22):
+        data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
+        count = 0
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
+
+            encoder_batch_input_data = batch[0][0]
+            original_sentences_input = batch[0][1]
+            print(encoder_batch_input_data.shape)
+            # encoder_batch_input_data = encoder_batch_input_data[0:1,]
+            decoded = self.predict_story_beam_search(encoder_batch_input_data, beam_size=beam_size)
+            for i in range(len(decoded[0])):
+
+                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                print("Original", original)
+                for j in range(beam_size):
+                    result = nlp.vec_to_sentence(decoded[0][i][j], self.idx_to_words)
+                    print("Decoded", result)
+                print(decoded[1][i])
+            break
+    # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
+    # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
