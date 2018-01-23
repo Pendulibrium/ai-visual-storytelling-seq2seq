@@ -151,14 +151,18 @@ class Inference:
     def predict_all(self, batch_size, sentence_length=22):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
+        bleu_score = 0.0
+        meteor_score = 0.0
         count = 0
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
-
+            count+=1
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
 
             references = []
             hypotheses = []
+
+
 
             decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
             # encoder_batch_input_data = encoder_batch_input_data[0:1,]
@@ -167,10 +171,15 @@ class Inference:
                 result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(original)
                 references.append(result)
-                print("Original", original)
-                print("Decoded", result)
-            break
+                #print("Original", original)
+                #print("Decoded", result)
 
-        print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
-        print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
+            meteor_score += Scores().calculate_scores(Score_Method.METEOR, references,hypotheses)[1]
+            #bleu_score += Scores().calculate_scores(Score_Method.BLEU, references, hypotheses)[1]
+            print(str(count) + ":" + str(meteor_score))
+
+        print("Total", meteor_score / (count * batch_size))
+        #print("Total", bleu_score/(count*batch_size))
+        #print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
+        #print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
 

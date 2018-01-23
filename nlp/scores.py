@@ -28,6 +28,7 @@ class Scores:
             meteor_ref = MeteorReference(str(references[i]).split(), meteor)
             scores.append(meteor_ref.score(str(hypotheses[i]).split()))
 
+        meteor.kill_process()
         return scores, sum(scores)
 
     def calculate_scores(self, score_method_name, references, hypotheses):

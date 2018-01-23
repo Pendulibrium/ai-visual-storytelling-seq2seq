@@ -11,3 +11,16 @@ Visual Story Telling
 9) Try to reverse the image embeddings
 10) Shuffle the training samples
 11)
+
+#train-
+#time: 14:59-15:13
+#bleu: 0.5104660537890634
+#meteor: 0.17082049527670987
+#valid-
+#time_bleu:  13:59-14:00
+#bleu:  0.4790176691234322
+#meteor_time: 15:30-22:00
+#meteor: 0.06073113164884557
+#test-
+#time_bleu: 15:22-15:23
+#bleu: 0.4769828372026272

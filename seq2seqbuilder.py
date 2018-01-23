@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, RNN
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
@@ -81,11 +81,14 @@ class Seq2SeqBuilder:
         decoder_lstm_name = "decoder_layer_"
 
         for i in range(0, num_stacked):
-            decoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=decoder_lstm_name + str(i))
 
             if i == 0:
+                decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
+                                    name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
             else:
+                decoder = cell_type(latent_dim, dropout=0.2, return_sequences=True, return_state=True,
+                                    name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_outputs[0])
 
         decoder_dense = TimeDistributed(Dense(num_tokens, activation='softmax'), name="dense_layer")
@@ -139,14 +142,22 @@ class Seq2SeqBuilder:
 
         decoder_prefix = "decoder_layer_"
         num_decoder = self.get_number_of_layers(model, decoder_prefix)
+        ##ova da se generalizira
         decoder_state_input_h1 = Input(shape=(latent_dim,))
         decoder_state_input_h2 = Input(shape=(latent_dim,))
         decoder_state_input_c = Input(shape=(latent_dim,))
 
         if len(encoder_states) == 1:
             decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
+            # decoder_states_inputs = []
+            # for i in range(num_decoder):
+            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
         else:
             decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
+            # decoder_states_inputs = []
+            # for i in range(num_decoder):
+            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
+            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
 
         decoder_states = []
         for i in range(num_decoder):
