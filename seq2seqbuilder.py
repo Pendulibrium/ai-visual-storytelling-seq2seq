@@ -142,22 +142,18 @@ class Seq2SeqBuilder:
 
         decoder_prefix = "decoder_layer_"
         num_decoder = self.get_number_of_layers(model, decoder_prefix)
-        ##ova da se generalizira
-        decoder_state_input_h1 = Input(shape=(latent_dim,))
-        decoder_state_input_h2 = Input(shape=(latent_dim,))
-        decoder_state_input_c = Input(shape=(latent_dim,))
 
         if len(encoder_states) == 1:
-            decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
-            # decoder_states_inputs = []
-            # for i in range(num_decoder):
-            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
-        else:
-            decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
-            # decoder_states_inputs = []
-            # for i in range(num_decoder):
-            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
-            #     decoder_states_inputs.append(Input(shape=(latent_dim,)))
+            #decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
+            decoder_states_inputs = []
+            for i in range(num_decoder):
+                decoder_states_inputs.append(Input(shape=(latent_dim,)))
+        else: # TODO : test if this works with stacked LSTM model
+            #decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
+            decoder_states_inputs = []
+            for i in range(num_decoder):
+                decoder_states_inputs.append(Input(shape=(latent_dim,)))
+                decoder_states_inputs.append(Input(shape=(latent_dim,)))
 
         decoder_states = []
         for i in range(num_decoder):
