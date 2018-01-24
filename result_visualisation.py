@@ -15,6 +15,7 @@ from nlp.scores import Scores, Score_Method
 
 class Inference:
     def __init__(self, dataset_file_path, vocabulary_file_path, encoder_model, decoder_model):
+
         self.vocab_json = json.load(open(vocabulary_file_path))
         self.num_decoder_tokens = len(self.vocab_json['idx_to_words'])
         self.words_to_idx = self.vocab_json["words_to_idx"]
@@ -26,6 +27,7 @@ class Inference:
         self.encoder_model = encoder_model
         self.decoder_model = decoder_model
         self.vocab_size = len(self.words_to_idx)
+
         self.num_stacked_layers = Seq2SeqBuilder().get_number_of_layers(encoder_model, layer_prefix="encoder_layer_")
 
         return
@@ -152,38 +154,39 @@ class Inference:
 
     # "Why we don't use the generator"?
     # TODO: If we send start_index = 0 and end index is the last story then we will have memory overflow
-    def predict_all(self, batch_size, sentence_length=22):
+    def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name=''):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
-        bleu_score = 0.0
-        meteor_score = 0.0
         count = 0
+
+        references = []
+        hypotheses = []
+
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
             count += 1
+            print("batch_number: ", count)
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
 
-            references = []
-            hypotheses = []
-
             decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
-            # encoder_batch_input_data = encoder_batch_input_data[0:1,]
+
             for i in range(encoder_batch_input_data.shape[0]):
                 original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
                 result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
-                hypotheses.append(original)
-                references.append(result)
-                # print("Original", original)
-                # print("Decoded", result)
+                hypotheses.append(result)
+                references.append(original)
 
-            meteor_score += Scores().calculate_scores(Score_Method.METEOR, references, hypotheses)[1]
-            # bleu_score += Scores().calculate_scores(Score_Method.BLEU, references, hypotheses)[1]
-            print(str(count) + ":" + str(meteor_score))
+        if references_file_name:
+            print("writing original filenames")
+            original_file = open("./results/" + references_file_name, "w")
+            original_sentences_with_new_line = map(lambda x: x + "\n", references)
+            original_file.writelines(original_sentences_with_new_line)
+            original_file.close()
 
-        print("Total", meteor_score / (count * batch_size))
-        # print("Total", bleu_score/(count*batch_size))
-        # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
-        # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
+        hypotheses_file = open("./results/hypotheses_" + hypotheses_file_name + ".txt", "w")
+        hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
+        hypotheses_file.writelines(hypotheses_sentences_with_new_line)
+        hypotheses_file.close()
 
     def predict_all_beam_search(self, batch_size, beam_size=3, sentence_length=22):
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
