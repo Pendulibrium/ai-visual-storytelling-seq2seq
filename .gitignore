@@ -12,6 +12,7 @@ Graph/
 loss_logs/
 checkpoints/
 glove.6B.300d.txt
+nlp/data
 dataset/image_embeddings_to_sentence/
 # C extensions
 *.so
