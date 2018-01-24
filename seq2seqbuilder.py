@@ -5,6 +5,7 @@ from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
 import numpy as np
 
+
 class Seq2SeqBuilder:
     def __init__(self):
         return
@@ -41,7 +42,7 @@ class Seq2SeqBuilder:
         return embedding_layer
 
     def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
-                    encoder_input_shape, decoder_input_shape, cell_type, masking=False):
+                                    encoder_input_shape, decoder_input_shape, cell_type, masking=False):
         # Shape (num_samples, 4096), 4096 is the image embedding length
         encoder_inputs = Input(shape=encoder_input_shape, name="encoder_input_layer")
 
@@ -57,7 +58,8 @@ class Seq2SeqBuilder:
             if i == num_stacked - 1:
                 encoder = cell_type(latent_dim, return_state=True, name=encoder_lstm_name + str(i))
             else:
-                encoder = cell_type(latent_dim, return_sequences=True, return_state=True, name=encoder_lstm_name + str(i))
+                encoder = cell_type(latent_dim, return_sequences=True, return_state=True,
+                                    name=encoder_lstm_name + str(i))
 
             if i == 0:
                 if masking:
@@ -65,10 +67,9 @@ class Seq2SeqBuilder:
                 else:
                     encoder_outputs = encoder(encoder_inputs)
             else:
-                encoder_outputs= encoder(encoder_outputs[0])
+                encoder_outputs = encoder(encoder_outputs[0])
 
         encoder_states = encoder_outputs[1:]
-
 
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
@@ -109,11 +110,6 @@ class Seq2SeqBuilder:
 
         latent_dim = 0
         model = load_model(model_name)
-        #print(model.layers[3].get_config()['units'])
-        #a = model.layers[2].get_config()
-        #dec_inp = Embedding.from_config(a)
-        #inp = Input(shape=model.layers[0].get_config()['batch_input_shape'])
-        # plot_model(model, to_file='model.png' , show_shapes= True)
 
         encoder_inputs = Input(shape=model.get_layer("encoder_input_layer").get_config()['batch_input_shape'][1:])
         print("encoder inputs shape: ", encoder_inputs.shape)
@@ -144,12 +140,12 @@ class Seq2SeqBuilder:
         num_decoder = self.get_number_of_layers(model, decoder_prefix)
 
         if len(encoder_states) == 1:
-            #decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
+            # decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
             decoder_states_inputs = []
             for i in range(num_decoder):
                 decoder_states_inputs.append(Input(shape=(latent_dim,)))
-        else: # TODO : test if this works with stacked LSTM model
-            #decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
+        else:  # TODO : test if this works with stacked LSTM model
+            # decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
             decoder_states_inputs = []
             for i in range(num_decoder):
                 decoder_states_inputs.append(Input(shape=(latent_dim,)))
@@ -162,10 +158,8 @@ class Seq2SeqBuilder:
                 decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
                 decoder_states = decoder_states + list(decoder_outputs[1:])
             else:
-                decoder_outputs = decoder(decoder_outputs[0], initial_state =decoder_states_inputs[i])
+                decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i])
                 decoder_states = decoder_states + list(decoder_outputs[1:])
-
-        #decoder_states = list(decoder_outputs[1:])
 
         decoder_dense = model.get_layer("dense_layer")
         decoder_outputs = decoder_dense(decoder_outputs[0])

@@ -10,7 +10,6 @@ import textwrap
 import os
 
 
-
 class StoryPlot:
     def __init__(self, stories_data_set_path='./dataset/vist_dataset/validate_data/val.story-in-sequence.json',
                  images_root_folder_path='./dataset/vist_dataset/validate_data/images/val'):
@@ -37,7 +36,7 @@ class StoryPlot:
 
         fig = plt.figure()
 
-        wrapper = textwrap.TextWrapper(width = 40)
+        wrapper = textwrap.TextWrapper(width=40)
         for i in range(len(story_image_filenames)):
             im = cv2.imread(story_image_filenames[i])
             im = cv2.resize(im, (300, 300))
@@ -48,14 +47,13 @@ class StoryPlot:
             a = fig.add_subplot(1, len(story_image_filenames), i + 1)
 
             a.axis("off")
-            a.text(0, 330, "\n".join(wrapper.wrap(original_text)), ha='left', va = "top")
-            a.text(0, 400,"\n".join(wrapper.wrap(decoded_text)), ha='left', va="top")
+            a.text(0, 330, "\n".join(wrapper.wrap(original_text)), ha='left', va="top")
+            a.text(0, 400, "\n".join(wrapper.wrap(decoded_text)), ha='left', va="top")
 
             plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
 
         plt.axis("off")
         plt.show()
-
 
 # story_plot = StoryPlot(stories_data_set_path='./dataset/vist_sis/train.story-in-sequence.json',
 #                        images_root_folder_path='./dataset/sample_images')
