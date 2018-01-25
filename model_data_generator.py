@@ -173,17 +173,3 @@ class ModelDataGenerator:
                     decoder_batch_target_data = np.zeros(
                         (approximate_batch_size, self.sentences_length, self.number_of_tokens),
                         dtype=np.int32)
-
-
-vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
-train_dataset = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
-train_generator = ModelDataGenerator(train_dataset, vocab_json, 64)
-batch = train_generator.multiple_samples_per_story_generator(reverse=False).next()
-batch = batch[0][0]
-for i in range(1, 2):
-    sample = batch[i]
-    print(np.array_equal(sample[0], np.zeros((4096))))
-    print(np.array_equal(sample[1], np.zeros((4096))))
-    print(np.array_equal(sample[2], np.zeros((4096))))
-    print(np.array_equal(sample[3], np.zeros((4096))))
-    print(np.array_equal(sample[4], np.zeros((4096))))
