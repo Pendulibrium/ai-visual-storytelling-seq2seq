@@ -60,7 +60,7 @@ hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(
 end_time = time.time()
 end_time_string = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d_%H:%M:%S')
 
-model_filename = './trained_models/' + str(start_time) + "-" + str(end_time) + '.h5'
+model_filename = './trained_models/' + str(start_time_string) + "-" + str(end_time_string) + '.h5'
 model.save(model_filename)
 
 # Write report
