@@ -90,7 +90,7 @@ class Seq2SeqBuilder:
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
             else:
-                decoder = cell_type(latent_dim, dropout=0.2, return_sequences=True, return_state=True,
+                decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_outputs[0])
 
