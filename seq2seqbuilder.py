@@ -3,6 +3,8 @@ from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistri
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
+from keras import layers
+
 import numpy as np
 
 
@@ -153,12 +155,20 @@ class Seq2SeqBuilder:
 
         decoder_states = []
         for i in range(num_decoder):
+
             decoder = model.get_layer(decoder_prefix + str(i))
+            weights = decoder.get_weights()
+            config = decoder.get_config()
+            config['dropout'] = 0.0
+            decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
+
             if i == 0:
                 decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
+                decoder.set_weights(weights)
                 decoder_states = decoder_states + list(decoder_outputs[1:])
             else:
                 decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i])
+                decoder.set_weights(weights)
                 decoder_states = decoder_states + list(decoder_outputs[1:])
 
         decoder_dense = model.get_layer("dense_layer")
