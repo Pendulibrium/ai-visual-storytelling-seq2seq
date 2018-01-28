@@ -36,7 +36,13 @@ class ModelDataGenerator:
         if you sent batch_size 64 it will generate the batch size of 65.
     '''
 
-    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False):
+    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False):
+
+        if shuffle:
+            permutation = np.random.permutation(self.num_samples)
+            print("generating with permutation")
+        else:
+            permutation = range(self.num_samples)
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
         approximate_batch_size = story_batch_size * self.story_length  # Actual batch size
@@ -48,12 +54,13 @@ class ModelDataGenerator:
                                                  dtype=np.int32)
 
             for i in range(self.num_samples):
+                current_story_index = permutation[i]
                 for j in range(self.story_length):
                     encoder_row_start_range = ((i % story_batch_size) * self.story_length) + j
                     encoder_row_end_range = ((i % story_batch_size) * self.story_length) + self.story_length
 
                     encoder_batch_input_data[encoder_row_start_range: encoder_row_end_range, j] = \
-                        self.image_embeddings[i][j]
+                        self.image_embeddings[current_story_index][j]
 
                     if reverse:
                         encoder_batch_input_data[encoder_row_start_range] = np.flip(
@@ -62,12 +69,12 @@ class ModelDataGenerator:
                     decoder_row = (i % story_batch_size) * self.story_length + j
 
                     # TODO: this should be optimized in the database instead of in the generating process
-                    temp_story = self.story_sentences[i][j].tolist()
+                    temp_story = self.story_sentences[current_story_index][j].tolist()
                     end_index = temp_story.index(2)
                     temp_story[end_index] = 0
                     decoder_batch_input_data[decoder_row] = np.array(temp_story)
 
-                story = self.story_sentences[i]
+                story = self.story_sentences[current_story_index]
                 for sentence_index in range(len(story)):
                     sentence = story[sentence_index]
                     for word_index in range(len(sentence)):

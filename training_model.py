@@ -26,6 +26,7 @@ num_of_stacked_rnn = 2  # Number of Stacked RNN layers
 cell_type = GRU
 learning_rate = 0.0001
 gradient_clip_value = 5.0
+reverse = True
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
@@ -50,8 +51,8 @@ csv_logger_filename = "./loss_logs/" + start_time_string + ".csv"
 csv_logger = CSVLogger(csv_logger_filename, separator=',', append=False)
 
 # Start training
-reverse = False
-hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(reverse=reverse),
+
+hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True),
                            steps_per_epoch=num_samples / batch_size,
                            epochs=epochs,
                            validation_data=valid_generator.multiple_samples_per_story_generator(),
