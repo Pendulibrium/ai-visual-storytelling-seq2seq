@@ -177,13 +177,12 @@ class Inference:
                 references.append(original)
 
         if references_file_name:
-            print("writing original filenames")
             original_file = open("./results/" + references_file_name, "w")
             original_sentences_with_new_line = map(lambda x: x + "\n", references)
             original_file.writelines(original_sentences_with_new_line)
             original_file.close()
 
-        hypotheses_file = open("./results/hypotheses_" + hypotheses_file_name + ".txt", "w")
+        hypotheses_file = open(hypotheses_file_name, "w")
         hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
