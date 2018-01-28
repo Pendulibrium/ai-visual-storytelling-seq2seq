@@ -25,6 +25,7 @@ class StoryPlot:
             annotation = annotation_data[0]
             if annotation['story_id'] == story_id:
                 story.append(annotation)
+                print('found the story')
 
         story = sorted(story, key=lambda k: k['worker_arranged_photo_order'])
         story_image_filenames = [''] * len(story)
@@ -35,11 +36,11 @@ class StoryPlot:
                     story_image_filenames[i] = filename
 
         fig = plt.figure()
-
-        wrapper = textwrap.TextWrapper(width=40)
+        plt.subplots_adjust(bottom = 0.6)
+        wrapper = textwrap.TextWrapper(width=30)
         for i in range(len(story_image_filenames)):
             im = cv2.imread(story_image_filenames[i])
-            im = cv2.resize(im, (300, 300))
+            im = cv2.resize(im, (500, 500))
 
             original_text = story[i]['text']
             decoded_text = decoded_sentences[i]
@@ -47,8 +48,8 @@ class StoryPlot:
             a = fig.add_subplot(1, len(story_image_filenames), i + 1)
 
             a.axis("off")
-            a.text(0, 330, "\n".join(wrapper.wrap(original_text)), ha='left', va="top")
-            a.text(0, 400, "\n".join(wrapper.wrap(decoded_text)), ha='left', va="top")
+            a.text(0, 550, "\n".join(wrapper.wrap(original_text)), ha='left', va="top")
+            a.text(0, 700, "\n".join(wrapper.wrap(decoded_text)), ha='left', va="top")
 
             plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
 
