@@ -38,16 +38,17 @@ class ModelDataGenerator:
 
     def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False):
 
-        if shuffle:
-            permutation = np.random.permutation(self.num_samples)
-            print("generating with permutation")
-        else:
-            permutation = range(self.num_samples)
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
         approximate_batch_size = story_batch_size * self.story_length  # Actual batch size
 
         while 1:
+            if shuffle:
+                permutation = np.random.permutation(self.num_samples)
+                print("generating with permutation")
+            else:
+                permutation = range(self.num_samples)
+
             encoder_batch_input_data = np.zeros((approximate_batch_size, self.story_length, self.image_embeddings_size))
             decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
             decoder_batch_target_data = np.zeros((approximate_batch_size, self.sentences_length, self.number_of_tokens),

@@ -19,7 +19,7 @@ valid_generator = ModelDataGenerator(valid_dataset, vocab_json, 64)
 words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
-epochs = 1  # Number of epochs to train for.
+epochs = 150  # Number of epochs to train for.
 latent_dim = 1024  # Latent dimensionality of the encoding space.
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
