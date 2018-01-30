@@ -3,13 +3,16 @@ from seq2seqbuilder import Seq2SeqBuilder
 from result_visualisation import Inference
 import time as time
 
-model_name = "2018-01-25_10:05:24-2018-01-27_22:34:08:image_to_text_gru.h5"
-builder = Seq2SeqBuilder()
-encoder_model, decoder_model = builder.build_encoder_decoder_inference("trained_models/" + model_name)
+dataset_type = "valid"
+model_name = "2018-01-29_00:37:26-2018-01-31_00:01:42"
+model_file_name = "./trained_models/" + model_name + ".h5"
 
-inference = Inference('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5',
+builder = Seq2SeqBuilder()
+encoder_model, decoder_model = builder.build_encoder_decoder_inference(model_file_name)
+
+inference = Inference('./dataset/image_embeddings_to_sentence/stories_to_index_'+ dataset_type +'.hdf5',
                       './dataset/vist2017_vocabulary.json', encoder_model, decoder_model)
 t = time.time()
 inference.predict_all(batch_size=64, references_file_name='',
-                      hypotheses_file_name="./results/2018-01-25_10:05:24-2018-01-27_22:34:08/hypotheses_train.txt")
+                      hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + ".txt")
 print((time.time() - t) / 60.0)
