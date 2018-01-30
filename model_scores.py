@@ -3,7 +3,7 @@ from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 
 # Calculating Meteor score
 dataset_type = 'valid'
-results_model_dir = "./results/2018-01-18_17:39:24-2018-01-20_18:50:39/"
+results_model_dir = "./results/2018-01-29_00:37:26-2018-01-31_00:01:42/"
 hypotheses_filename = results_model_dir + "hypotheses_" + dataset_type + ".txt"
 references_filename = "./results/original_" + dataset_type + ".txt"
 
