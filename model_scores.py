@@ -1,32 +1,22 @@
 import commands
 from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 
+# Calculating Meteor score
+dataset_type = 'valid'
+results_model_dir = "./results/2018-01-18_17:39:24-2018-01-20_18:50:39/"
+hypotheses_filename = results_model_dir + "hypotheses_" + dataset_type + ".txt"
+references_filename = "./results/original_" + dataset_type + ".txt"
 
-# Meteor scoring
-hypotheses_filename = "./results/2018-01-25_10:05:24-2018-01-27_22:34:08/hypotheses_valid.txt"
-references_filename = "./results/original_valid.txt"
-
-status, output = commands.getstatusoutput(
+status, output_meteor = commands.getstatusoutput(
     "java -Xmx2G -jar nlp/meteor-1.5.jar " + hypotheses_filename + " " + references_filename + " -l en -norm")
 
-text_file = open("./results/2018-01-25_10:05:24-2018-01-27_22:34:08/meteor_valid", "w")
-text_file.write(output)
+text_file = open(results_model_dir + "meteor_" + dataset_type, "w")
+text_file.write(output_meteor)
 text_file.close()
 
-#Bleu scoring
-
-with open(references_filename) as f:
-    references = f.readlines()
-references = [x.strip() for x in references]
-references = [[x.split()] for x in references]
-
-with open(hypotheses_filename) as f:
-    hypotheses = f.readlines()
-hypotheses = [x.strip().split() for x in hypotheses]
-
-
-print("Bleu score", corpus_bleu(references, hypotheses) * 100)
-
-
-
-
+# Calculating BLEU score
+status, output_bleu = commands.getstatusoutput(
+    "perl ./nlp/multi-bleu.perl " + references_filename + " < " + hypotheses_filename)
+text_file = open(results_model_dir + "bleu_" + dataset_type, "w")
+text_file.write(output_bleu)
+text_file.close()
