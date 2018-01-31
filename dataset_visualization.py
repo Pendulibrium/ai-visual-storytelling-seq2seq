@@ -6,9 +6,9 @@ story_plot = StoryPlot(stories_data_set_path='./dataset/vist_dataset/validate_da
 
 train_dataset = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
 story_ids = train_dataset['story_ids']
-hypothesis = open('./results/hypotheses_2018-01-18_17:39:24-2018-01-20_18:50:39_valid.txt').read().split('\n')
+hypothesis = open('./results/2018-01-29_00:37:26-2018-01-31_00:01:42/hypotheses_valid.txt').read().split('\n')
 
-story_index = 30
+story_index = 0
 
 while True:
     story_id = story_ids[story_index]
@@ -19,4 +19,3 @@ while True:
         story_index = story_index - 5
     elif direction == 'w':
         story_index = story_index + 5
-

@@ -3,7 +3,7 @@ from seq2seqbuilder import Seq2SeqBuilder
 from result_visualisation import Inference
 import time as time
 
-dataset_type = "valid"
+dataset_type = "train"
 model_name = "2018-01-29_00:37:26-2018-01-31_00:01:42"
 model_file_name = "./trained_models/" + model_name + ".h5"
 
