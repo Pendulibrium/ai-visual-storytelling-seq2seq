@@ -19,14 +19,14 @@ valid_generator = ModelDataGenerator(valid_dataset, vocab_json, 64)
 words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
-epochs = 150  # Number of epochs to train for.
+epochs = 100  # Number of epochs to train for.
 latent_dim = 1024  # Latent dimensionality of the encoding space.
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
 cell_type = GRU
 learning_rate = 0.0001
 gradient_clip_value = 5.0
-reverse = True
+reverse = False
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
@@ -38,7 +38,8 @@ start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-
 # Build model
 builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(latent_dim, words_to_idx, word_embedding_size, num_decoder_tokens,
-                                            num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True)
+                                            num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
+                                            recurrence_dropout=0.2)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
