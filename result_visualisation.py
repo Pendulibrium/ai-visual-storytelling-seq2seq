@@ -152,8 +152,7 @@ class Inference:
 
         return decoded_sentences
 
-    # "Why we don't use the generator"?
-    # TODO: If we send start_index = 0 and end index is the last story then we will have memory overflow
+    # TODO: we should send the reverse params
     def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name=''):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
@@ -162,7 +161,7 @@ class Inference:
         references = []
         hypotheses = []
 
-        for batch in data_generator.multiple_samples_per_story_generator(reverse=True, only_one_epoch=True):
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
             count += 1
             print("batch_number: ", count)
             encoder_batch_input_data = batch[0][0]
