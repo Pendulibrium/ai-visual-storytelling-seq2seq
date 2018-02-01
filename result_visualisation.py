@@ -187,9 +187,13 @@ class Inference:
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
 
-    def predict_all_beam_search(self, batch_size, beam_size=3, sentence_length=22):
+    def predict_all_beam_search(self, batch_size, beam_size=3, sentence_length=22, references_file_name='', hypotheses_file_name=''):
+
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
+        references = []
+        hypotheses = []
+
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
 
             encoder_batch_input_data = batch[0][0]
@@ -199,14 +203,18 @@ class Inference:
             decoded = self.predict_story_beam_search(encoder_batch_input_data, beam_size=beam_size)
             for i in range(len(decoded[0])):
 
-                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                print("Original", original)
-                for j in range(beam_size):
-                    result = nlp.vec_to_sentence(decoded[0][i][j], self.idx_to_words)
-                    print("Decoded", result)
-                print(decoded[1][i])
                 max_score_index = np.argmin(decoded[1][i])
-                print("Decoded", decoded[0][i][max_score_index])
-            break
-            # print(Scores().calculate_scores(Score_Method.BLEU, references,hypotheses))
-            # print(Scores().calculate_scores(Score_Method.METEOR, references, hypotheses))
+                #print("Decoded",nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
+                hypotheses.append(nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
+
+
+        if references_file_name:
+            original_file = open("./results/" + references_file_name, "w")
+            original_sentences_with_new_line = map(lambda x: x + "\n", references)
+            original_file.writelines(original_sentences_with_new_line)
+            original_file.close()
+
+        hypotheses_file = open(hypotheses_file_name, "w")
+        hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
+        hypotheses_file.writelines(hypotheses_sentences_with_new_line)
+        hypotheses_file.close()
