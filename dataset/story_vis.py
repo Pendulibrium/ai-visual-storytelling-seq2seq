@@ -12,7 +12,7 @@ app = Flask(__name__, static_folder='vist_dataset')
 
 @app.route("/show_story/<int:story_index>")
 def show_story(story_index):
-    story_plot = StoryPlot(stories_data_set_path='./vist_sis/val.story-in-sequence.json',
+    story_plot = StoryPlot(stories_data_set_path='./vist_dataset/validate_data/val.story-in-sequence.json',
                            images_root_folder_path='./vist_dataset/validate_data')
 
     train_dataset = h5py.File('./image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
@@ -22,6 +22,7 @@ def show_story(story_index):
     story_id = story_ids[story_index]
     hypotheses_sentences = hypothesis[(story_index * 5): (story_index * 5) + 5]
     data = story_plot.get_story_data(str(story_id))
+    data['image_filenames'] = map(lambda x: x[1:], data['image_filenames'])
     data['hypotheses_sentences'] = hypotheses_sentences
 
     print(data)
