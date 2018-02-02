@@ -36,7 +36,7 @@ class StoryPlot:
                     story_image_filenames[i] = filename
 
         fig = plt.figure()
-        plt.subplots_adjust(bottom = 0.6)
+        plt.subplots_adjust(bottom=0.6)
         wrapper = textwrap.TextWrapper(width=30)
         for i in range(len(story_image_filenames)):
             im = cv2.imread(story_image_filenames[i])
@@ -55,6 +55,26 @@ class StoryPlot:
 
         plt.axis("off")
         plt.show()
+
+    def get_story_data(self, story_id):
+
+        story = []
+        for annotation_data in self.annotations:
+            annotation = annotation_data[0]
+            if annotation['story_id'] == story_id:
+                story.append(annotation)
+
+        story = sorted(story, key=lambda k: k['worker_arranged_photo_order'])
+        story_image_filenames = [''] * len(story)
+        image_paths = [y for x in os.walk(self.images_root_folder_path) for y in glob(os.path.join(x[0], "*.jpg"))]
+        for filename in image_paths:
+            for i in range(len(story)):
+                if story[i]['photo_flickr_id'] in filename:
+                    story_image_filenames[i] = filename
+
+        original_sentences = map(lambda x: x['text'], story)
+
+        return {'image_filenames': story_image_filenames, "original_sentences": original_sentences}
 
 # story_plot = StoryPlot(stories_data_set_path='./dataset/vist_sis/train.story-in-sequence.json',
 #                        images_root_folder_path='./dataset/sample_images')
