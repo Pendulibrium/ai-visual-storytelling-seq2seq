@@ -12,11 +12,40 @@
         integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
         crossorigin="anonymous"></script>
 
+
+<script>
+
+    $(document).keydown(function(e) {
+        switch(e.which) {
+            case 37:      //left
+                load_story_inc(-1);
+                break;
+            case 39:     // right
+                load_story_inc(+1);
+                break;
+
+            default: return; // exit this handler for other keys
+        }
+        e.preventDefault(); // prevent the default action (scroll / move caret)
+    });
+
+  function load_story_inc(value) {
+      console.log("key: " + value);
+      url = window.location.href;
+      var components = url.split('/');
+      current_id = parseInt(components[components.length-1]);
+      current_id = current_id + value;
+      components[components.length-1] = String(current_id);
+      window.location.href = components.join('/');
+  }
+
+
+</script>
+
 <style>
 .main-container {
     margin: 2%
 }
-
 
 
 
@@ -30,7 +59,7 @@
     <div class="row">
         {% for item in data.original_sentences %}
         <div class="col-2">
-            <img src="{{ data.image_filenames[loop.index0] }}"  alt="" class="img-fluid">
+            <img src="{{ data.image_filenames[loop.index0] }}" alt="" class="img-fluid">
             <p>{{data.original_sentences[loop.index0]}}</p>
             <p>{{data.hypotheses_sentences[loop.index0]}}</p>
         </div>
