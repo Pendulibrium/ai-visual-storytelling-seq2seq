@@ -3,8 +3,9 @@ from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 
 # Calculating Meteor score
 dataset_type = 'valid'
-results_model_dir = "./results/2018-01-29_00:37:26-2018-01-31_00:01:42/"
-beam_size = 3
+results_model_dir = "./results/2018-02-01_16:22:39-2018-02-03_00:22:15/"
+beam_size = 1
+
 if beam_size > 1:
     hypotheses_filename = results_model_dir + "hypotheses_" + dataset_type + "_beam" + str(beam_size) + ".txt"
 else:
