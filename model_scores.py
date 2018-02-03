@@ -14,7 +14,7 @@ else:
 references_filename = "./results/original_" + dataset_type + ".txt"
 
 status, output_meteor = commands.getstatusoutput(
-    "java -Xmx2G -jar nlp/meteor-1.5.jar " + hypotheses_filename + " " + references_filename + " -l en -norm")
+    "java -Xmx2G -jar nlp/meteor-1.5.jar " + hypotheses_filename + " " + references_filename + " -t hter -l en -norm")
 
 if beam_size > 1:
     text_file = open(results_model_dir + "meteor_" + dataset_type + "_beam" + str(beam_size), "w")
