@@ -69,7 +69,7 @@ duration_string = util.seconds_to_formatted_string(end_time - start_time)
 print(hist.history)
 history = hist.history
 val_loss = -1
-if history['val_loss']:
+if 'val_loss' in history:
     val_loss = history['val_loss'][-1]
 
 writer = ReportWriter('./results/model_results.csv')
