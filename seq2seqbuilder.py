@@ -45,7 +45,7 @@ class Seq2SeqBuilder:
 
     def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
                                     encoder_input_shape, decoder_input_shape, cell_type, masking=False,
-                                    recurrent_dropout=0.0):
+                                    recurrent_dropout=0.0, input_dropout=0.0):
         # Shape (num_samples, 4096), 4096 is the image embedding length
         encoder_inputs = Input(shape=encoder_input_shape, name="encoder_input_layer")
 
@@ -60,10 +60,11 @@ class Seq2SeqBuilder:
         for i in range(0, num_stacked):
             if i == num_stacked - 1:
                 encoder = cell_type(latent_dim, return_state=True, recurrent_dropout=recurrent_dropout,
+                                    dropout=input_dropout,
                                     name=encoder_lstm_name + str(i))
             else:
                 encoder = cell_type(latent_dim, return_sequences=True, return_state=True,
-                                    recurrent_dropout=recurrent_dropout,
+                                    recurrent_dropout=recurrent_dropout, dropout=input_dropout,
                                     name=encoder_lstm_name + str(i))
 
             if i == 0:
@@ -94,7 +95,7 @@ class Seq2SeqBuilder:
                 decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
             else:
                 decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
-                                    recurrent_dropout=recurrent_dropout,
+                                    recurrent_dropout=recurrent_dropout, dropout=input_dropout,
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_outputs[0])
 

@@ -39,7 +39,7 @@ start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-
 builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(latent_dim, words_to_idx, word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
-                                            recurrent_dropout=0.2)
+                                            recurrent_dropout=0.0, input_dropout = 0.5)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
