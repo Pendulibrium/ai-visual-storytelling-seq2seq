@@ -1,2 +1,4 @@
 num_samples,duration,num_epochs,loss,val_loss,num_layers,cell_type,activation,hidden_dimension,learning_rate,gradient_clipping_value,optimizer,loss_history_filename,model_filename,reverse_sequence,notes
 200775,47:24:15h,150,0.195949491072,7.784921676,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-01-29_00:37:26.csv,./trained_models/2018-01-29_00:37:26-2018-01-31_00:01:42.h5,True, all samples are shuflled on every epoch
+200775,30:00:00h,100,0.2139,None,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-01_16:22:39.csv,./trained_models/2018-02-01_16:22:39-2018-02-03_00:22:15.h5,False, Added reccurence dropout of 0.2
+
