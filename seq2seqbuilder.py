@@ -128,11 +128,20 @@ class Seq2SeqBuilder:
         print("num: ", num_encoder)
         for i in range(num_encoder):
             encoder = model.get_layer(encoder_lstm_prefix + str(i))
+            weights = encoder.get_weights()
+            config = encoder.get_config()
+            config['dropout'] = 0.0
+            config['recurrent_dropout'] = 0.0
+            encoder = layers.deserialize({'class_name': encoder.__class__.__name__, 'config': config})
+
             if i == 0:
                 encoder_outputs = encoder(mask_output)
+                encoder.set_weights(weights)
                 latent_dim = encoder.get_config()['units']
             else:
                 encoder_outputs = encoder(encoder_outputs[0])
+                encoder.set_weights(weights)
+
         encoder_states = list(encoder_outputs[1:])
 
         encoder_model = Model(encoder_inputs, encoder_states)
@@ -164,6 +173,7 @@ class Seq2SeqBuilder:
             weights = decoder.get_weights()
             config = decoder.get_config()
             config['dropout'] = 0.0
+            config['recurrent_dropout'] = 0.0
             decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
 
             if i == 0:
