@@ -4,7 +4,7 @@ from result_visualisation import Inference
 import time as time
 
 dataset_type = "train"
-model_name = "2018-02-01_16:22:39-2018-02-03_00:22:15"
+model_name = "2018-02-03_14:00:00-2018-02-04_06:15:29"
 model_file_name = "./trained_models/" + model_name + ".h5"
 
 # model_file_name = "trained_models/2018-01-18_17:39:24-2018-01-20_18:50:39:image_to_text_gru.h5"

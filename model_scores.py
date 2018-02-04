@@ -2,8 +2,8 @@ import commands
 from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 
 # Calculating Meteor score
-dataset_type = 'valid'
-results_model_dir = "./results/2018-02-01_16:22:39-2018-02-03_00:22:15/"
+dataset_type = 'train'
+results_model_dir = "./results/2018-02-03_14:00:00-2018-02-04_06:15:29/"
 beam_size = 1
 
 if beam_size > 1:
