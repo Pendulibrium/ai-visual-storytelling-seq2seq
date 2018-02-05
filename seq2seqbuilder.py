@@ -113,10 +113,13 @@ class Seq2SeqBuilder:
                 count += 1
         return count
 
-    def build_encoder_decoder_inference(self, model_name):
+    def build_encoder_decoder_inference_from_file(self, model_path):
+        model = load_model(model_path)
+        return self.build_encoder_decoder_inference(model)
+
+    def build_encoder_decoder_inference(self, model):
 
         latent_dim = 0
-        model = load_model(model_name)
 
         encoder_inputs = Input(shape=model.get_layer("encoder_input_layer").get_config()['batch_input_shape'][1:])
         print("encoder inputs shape: ", encoder_inputs.shape)
