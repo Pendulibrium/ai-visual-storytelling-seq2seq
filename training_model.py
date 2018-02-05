@@ -1,6 +1,7 @@
 from keras.layers import LSTM, GRU, CuDNNGRU
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger
+from result_visualisation import NLPScores
 import numpy as np
 import h5py
 import json
@@ -39,23 +40,26 @@ start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-
 builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(latent_dim, words_to_idx, word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
-                                            recurrent_dropout=0.0, input_dropout = 0.5)
+                                            recurrent_dropout=0.0, input_dropout=0.5)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
 # Callbacks
 checkpoint_name = start_time_string + "checkpoint.hdf5"
-checkpointer = ModelCheckpoint(monitor='loss', filepath='./checkpoints/' + checkpoint_name, verbose=1, save_best_only=True)
+checkpointer = ModelCheckpoint(monitor='loss', filepath='./checkpoints/' + checkpoint_name, verbose=1,
+                               save_best_only=True)
 
 csv_logger_filename = "./loss_logs/" + start_time_string + ".csv"
 csv_logger = CSVLogger(csv_logger_filename, separator=',', append=False)
+
+nlpScores = NLPScores('valid')
 
 # Start training
 
 hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True),
                            steps_per_epoch=num_samples / batch_size,
-                           epochs=epochs, callbacks=[checkpointer, csv_logger])
+                           epochs=epochs, callbacks=[checkpointer, csv_logger, nlpScores])
 
 end_time = time.time()
 end_time_string = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d_%H:%M:%S')

@@ -3,6 +3,7 @@ from keras.layers import Input, LSTM, Dense, Embedding, Masking
 from keras.optimizers import *
 from keras.models import load_model
 from keras.utils import plot_model
+from keras.callbacks import Callback
 import numpy as np
 import h5py
 import json
@@ -11,6 +12,8 @@ from model_data_generator import ModelDataGenerator
 from nlp import nlp
 from seq2seqbuilder import Seq2SeqBuilder
 from nlp.scores import Scores, Score_Method
+import time
+import commands
 
 
 class Inference:
@@ -242,6 +245,7 @@ class Inference:
                 result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(result)
                 references.append(original)
+            break
 
         if references_file_name:
             original_file = open("./results/" + references_file_name, "w")
@@ -273,7 +277,7 @@ class Inference:
             decoded = self.predict_story_beam_search1(encoder_batch_input_data, beam_size=beam_size)
             for i in range(len(decoded[0])):
                 max_score_index = np.argmin(decoded[1][i])
-                #print("Decoded",nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
+                # print("Decoded",nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
                 hypotheses.append(nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
 
         if references_file_name:
@@ -286,3 +290,48 @@ class Inference:
         hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
+
+
+class NLPScores(Callback):
+    def __init__(self, dataset_type):
+        super(NLPScores, self).__init__()
+        self.dataset_type = dataset_type
+
+    def on_epoch_begin(self, epoch, logs={}):
+        return
+
+    def on_epoch_end(self, epoch, logs={}):
+        print("On Epoch End: ")
+        print("epoch: ", epoch)
+
+        t = time.time()
+        builder = Seq2SeqBuilder()
+        encoder_model, decoder_model = builder.build_encoder_decoder_inference(self.model)
+        inference = Inference('./dataset/image_embeddings_to_sentence/stories_to_index_' + self.dataset_type + '.hdf5',
+                              './dataset/vist2017_vocabulary.json', encoder_model, decoder_model)
+
+        hypotheses_filename = "./results/temp/hypotheses_" + self.dataset_type + "_epoch_" + str(
+            epoch) + ".txt"
+        references_filename = "./results/original_" + self.dataset_type + ".txt"
+
+        inference.predict_all(batch_size=64, references_file_name='',
+                              hypotheses_file_name=hypotheses_filename)
+
+        # calculating Meteor
+        status, output_meteor = commands.getstatusoutput(
+            "java -Xmx2G -jar nlp/meteor-1.5.jar " + hypotheses_filename + " " + references_filename + " -t hter -l en -norm")
+
+        # Calculating BLEU score
+        status, output_bleu = commands.getstatusoutput(
+            "perl ./nlp/multi-bleu.perl " + references_filename + " < " + hypotheses_filename)
+
+        text_file = open('./results/temp/' + "bleu_" + self.dataset_type + "_epoch_" + str(epoch), "w")
+        text_file.write(output_bleu)
+        text_file.close()
+
+        text_file = open('./results/temp/' + "meteor_" + self.dataset_type + "_epoch_" + str(epoch), "w")
+        text_file.write(output_meteor)
+        text_file.close()
+
+        print("Meteor/Bleu time(minutes) : ", (time.time() - t) / 60.0)
+        print("end calculating")
