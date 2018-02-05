@@ -245,7 +245,6 @@ class Inference:
                 result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(result)
                 references.append(original)
-            break
 
         if references_file_name:
             original_file = open("./results/" + references_file_name, "w")
