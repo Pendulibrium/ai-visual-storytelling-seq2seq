@@ -1,5 +1,4 @@
 import commands
-from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 
 # Calculating Meteor score
 dataset_type = 'train'
