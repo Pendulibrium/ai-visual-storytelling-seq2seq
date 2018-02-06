@@ -36,156 +36,120 @@ class Inference:
         return
 
     def beam_search_predict_helper(self, live_sentence, state_values):
-        probs = []
-        new_states = []
 
-        for i in range(len(live_sentence)):
-            target_seq = np.zeros((1, 1))
-            last_word = live_sentence[i][-1]
-            target_seq[0, 0] = last_word
-            output = self.decoder_model.predict([target_seq] + state_values[i])
+        target_seq = np.zeros((self.get_number_of_sentences(live_sentence), 1))
+        last_words = np.zeros(self.get_number_of_sentences(live_sentence))
+        i = 0
+        for sentences in live_sentence:
+            for sentence in sentences:
+                last_words[i] = (sentence[-1])
+                i += 1
+        target_seq[:, 0] = last_words
+        output = self.decoder_model.predict([target_seq] + state_values)
+        prob = output[0]
+        states = output[1:]
 
-            prob = output[0]
-            states = output[1:]
-            reshaped_prob = np.reshape(prob, (self.vocab_size))
-            probs.append(reshaped_prob)
-            new_states.append(list(states))
-
-        return probs, new_states
+        return prob, states
 
     def predict_story_beam_search(self, input_sequence, max_decoder_seq_length=22, images_per_story=5,
                                   image_embed_size=4096, beam_size=3):
-        decoded_sentences = []
-        scores = []
-        m = 1
-        for images in input_sequence:
-            images = images.reshape(1, 5, 4096)
-            state_value = self.encoder_model.predict(images)
-            state_value_shape = state_value.shape
-            live_beam = 1
-            live_sentence = [[self.words_to_idx["<START>"]]]
-            live_score = [0]
-            dead_beam = 0
-            dead_sentence = []
-            dead_scores = []
-            state_values = []
-
-            for i in range(beam_size):
-
-                state_value_tmp = [state_value]
-                for k in range(self.num_stacked_layers - 1):
-                    state_value_tmp.append(np.zeros(state_value_shape))
-
-                state_values.append(state_value_tmp)
-
-            j = 0
-
-            while live_beam and dead_beam < beam_size:
-
-                probs, new_states = self.beam_search_predict_helper(live_sentence, state_values)
-
-                if j == 0:
-                    state_values = []
-                    for _ in range(beam_size):
-                        state_values.append(new_states[0])
-
-                else:
-                    state_values = new_states
-
-                j += 1
-                cand_scores = np.array(live_score)[:, None] - np.log(probs)
-                cand_flat = cand_scores.flatten()
-
-                ranks_flat = cand_flat.argsort()[:(beam_size - dead_beam)]
-                live_score = cand_flat[ranks_flat]
-
-                live_sentence = [live_sentence[r // self.vocab_size] + [r % self.vocab_size] for r in ranks_flat]
-
-                zombie = [s[-1] == 2 or len(s) >= max_decoder_seq_length for s in live_sentence]
-
-                # add zombies to the dead
-                dead_sentence += [s for s, z in zip(live_sentence, zombie) if z]  # remove first label == empty
-                dead_scores += [s for s, z in zip(live_score, zombie) if z]
-                dead_beam = len(dead_sentence)
-                # remove zombies from the living
-                live_sentence = [s for s, z in zip(live_sentence, zombie) if not z]
-                live_score = [s for s, z in zip(live_score, zombie) if not z]
-                state_values = [s for s, z in zip(state_values, zombie) if not z]
-
-                live_beam = len(live_sentence)
-
-            decoded_sentences.append(dead_sentence + live_sentence)
-            scores.append(dead_scores + live_score)
-
-        # returns sentence in integer list, should fix this
-        return decoded_sentences, scores
-
-    def predict_story_beam_search1(self, input_sequence, max_decoder_seq_length=22, images_per_story=5,
-                                   image_embed_size=4096, beam_size=3):
 
         encoder_states_value = self.encoder_model.predict(input_sequence)
         decoded_sentences = []
         scores = []
-        m = 1
-        for state_value in encoder_states_value:
-            state_value = np.reshape(state_value, (1, state_value.shape[0]))
-            state_value_shape = state_value.shape
-            live_beam = 1
-            live_sentence = [[self.words_to_idx["<START>"]]]
-            live_score = [0]
-            dead_beam = 0
-            dead_sentence = []
-            dead_scores = []
-            state_values = []
+        batch_size = encoder_states_value.shape[0]
+        states_value_shape = encoder_states_value.shape
+        new_encoder_states = [encoder_states_value]
 
-            for i in range(beam_size):
+        for _ in range(self.num_stacked_layers - 1):
+            new_encoder_states.append(np.zeros(states_value_shape))
 
-                state_value_tmp = [state_value]
-                for k in range(self.num_stacked_layers - 1):
-                    state_value_tmp.append(np.zeros(state_value_shape))
+        live_beam = np.ones(batch_size)
+        live_sentences = []
+        for i in range(batch_size):
+            live_sentences.append([[self.words_to_idx["<START>"]]])
+        live_score = []
+        for i in range(batch_size):
+            live_score.append([0])
 
-                state_values.append(state_value_tmp)
+        dead_beam = np.zeros(batch_size)
+        dead_sentences = []
+        for i in range(batch_size):
+            dead_sentences.append([])
+        dead_scores = []
+        for i in range(batch_size):
+            dead_scores.append([])
+        state_values = []
+        for i in range(self.num_stacked_layers):
+            state_values.append([])
+        j = 0
 
-            j = 0
+        while self.check_live_beams(live_beam) and self.check_dead_beams(dead_beam, beam_size):
+            probs, new_states = self.beam_search_predict_helper(live_sentences, new_encoder_states)
+            probs = np.reshape(probs, (probs.shape[0], probs.shape[2]))
+            start_index = 0
 
-            while live_beam and dead_beam < beam_size:
-
-                probs, new_states = self.beam_search_predict_helper(live_sentence, state_values)
+            for i in range(len(live_sentences)):
+                live_sentence_tmp = live_sentences[i]
+                live_beam_tmp = int(live_beam[i])
+                live_score_tmp = live_score[i]
+                dead_beam_tmp = int(dead_beam[i])
+                dead_sentence_tmp = dead_sentences[i]
+                dead_score_tmp = dead_scores[i]
+                state_values_tmp = []
 
                 if j == 0:
-                    state_values = []
-                    for _ in range(beam_size):
-                        state_values.append(new_states[0])
-
+                    probs_tmp = probs[i]
+                    for k in range(self.num_stacked_layers):
+                        for _ in range(beam_size):
+                            state_values[k].append(new_states[k][i, :])
                 else:
-                    state_values = new_states
+                    end_index_tmp = start_index + live_beam_tmp
+                    for k in range(self.num_stacked_layers):
+                        for v in range(start_index, end_index_tmp):
+                            state_values[k].append(new_states[k][v, :])
+                    probs_tmp = probs[start_index: end_index_tmp]
+                    start_index = end_index_tmp
 
-                j += 1
-                cand_scores = np.array(live_score)[:, None] - np.log(probs)
+                cand_scores = np.array(live_score_tmp)[:, None] - np.log(probs_tmp)
                 cand_flat = cand_scores.flatten()
-
-                ranks_flat = cand_flat.argsort()[:(beam_size - dead_beam)]
-                live_score = cand_flat[ranks_flat]
-
-                live_sentence = [live_sentence[r // self.vocab_size] + [r % self.vocab_size] for r in ranks_flat]
-
-                zombie = [s[-1] == 2 or len(s) >= max_decoder_seq_length for s in live_sentence]
-
+                ranks_flat = cand_flat.argsort()[:(beam_size - dead_beam_tmp)]
+                live_score_tmp = cand_flat[ranks_flat]
+                live_sentence_tmp = [live_sentence_tmp[r // self.vocab_size] + [r % self.vocab_size] for r in
+                                     ranks_flat]
+                zombie = [s[-1] == 2 or len(s) >= max_decoder_seq_length for s in live_sentence_tmp]
                 # add zombies to the dead
-                dead_sentence += [s for s, z in zip(live_sentence, zombie) if z]  # remove first label == empty
-                dead_scores += [s for s, z in zip(live_score, zombie) if z]
-                dead_beam = len(dead_sentence)
+                dead_sentence_tmp += [s for s, z in zip(live_sentence_tmp, zombie) if z]  # remove first label == empty
+                dead_score_tmp += [s for s, z in zip(live_score_tmp, zombie) if z]
+                dead_beam_tmp = len(dead_sentence_tmp)
                 # remove zombies from the living
-                live_sentence = [s for s, z in zip(live_sentence, zombie) if not z]
-                live_score = [s for s, z in zip(live_score, zombie) if not z]
-                state_values = [s for s, z in zip(state_values, zombie) if not z]
+                live_sentence_tmp = [s for s, z in zip(live_sentence_tmp, zombie) if not z]
+                live_score_tmp = [s for s, z in zip(live_score_tmp, zombie) if not z]
+                state_values_tmp = [s for s, z in zip(state_values_tmp, zombie) if not z]
+                live_beam_tmp = len(live_sentence_tmp)
+                # update parameters
+                live_sentences[i] = live_sentence_tmp
+                live_beam[i] = live_beam_tmp
+                live_score[i] = live_score_tmp
+                dead_beam[i] = dead_beam_tmp
+                dead_sentences[i] = dead_sentence_tmp
+                dead_scores[i] = dead_score_tmp
 
-                live_beam = len(live_sentence)
+            # Update state_values so they can be compatible with the upper predict call
+            new_encoder_states = []
+            for k in range(len(state_values)):
+                new_encoder_states.append(np.array(state_values[k]))
 
-            decoded_sentences.append(dead_sentence + live_sentence)
-            scores.append(dead_scores + live_score)
+            state_values = []
+            for k in range(self.num_stacked_layers):
+                state_values.append([])
 
-        # returns sentence in integer list, should fix this
+            j += 1
+            decoded_sentences = dead_sentences + live_sentences
+            scores = dead_scores + live_score
+
+        decoded_sentences = [x for x in decoded_sentences if x != []]
+        scores = [x for x in scores if x != []]
         return decoded_sentences, scores
 
     def predict_batch(self, input_sequence, sentence_length, ):
@@ -261,24 +225,20 @@ class Inference:
                                 hypotheses_file_name=''):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
-        count = 0
         references = []
         hypotheses = []
 
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
-
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
             print(encoder_batch_input_data.shape)
-            # encoder_batch_input_data = encoder_batch_input_data[0:1,]
-
             # TODO predict_story_beam_search1 function is only a mock function, further tests are needed for better performance
-            decoded = self.predict_story_beam_search1(encoder_batch_input_data, beam_size=beam_size)
+            decoded = self.predict_story_beam_search(encoder_batch_input_data, beam_size=beam_size)
             for i in range(len(decoded[0])):
                 max_score_index = np.argmin(decoded[1][i])
-                # print("Decoded",nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
+                #print("Decoded", nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
                 hypotheses.append(nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
-
+                
         if references_file_name:
             original_file = open("./results/" + references_file_name, "w")
             original_sentences_with_new_line = map(lambda x: x + "\n", references)
@@ -289,6 +249,25 @@ class Inference:
         hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
+
+    def get_number_of_sentences(self, live_sentences):
+        num_sentences = 0
+        for sentences in live_sentences:
+            num_sentences += len(sentences)
+
+        return num_sentences
+
+    def check_dead_beams(self, dead_beam, beam_size):
+        for i in range(len(dead_beam)):
+            if dead_beam[i] < beam_size:
+                return True
+        return False
+
+    def check_live_beams(self, live_beam):
+        for i in range(len(live_beam)):
+            if live_beam[i] > 0:
+                return True
+        return False
 
 
 class NLPScores(Callback):
