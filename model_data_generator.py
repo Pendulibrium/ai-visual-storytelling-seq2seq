@@ -36,63 +36,68 @@ class ModelDataGenerator:
         if you sent batch_size 64 it will generate the batch size of 65.
     '''
 
+    def generate_story_samples_from_index(self, story_index, reverse=False, last_k=5):
+
+        encoder_batch_input_data = np.zeros(
+            (self.story_length, self.story_length, self.image_embeddings_size))
+        decoder_batch_input_data = np.zeros((self.story_length, self.sentences_length), dtype=np.int32)
+        decoder_batch_target_data = np.zeros(
+            (self.story_length, self.sentences_length, self.number_of_tokens),
+            dtype=np.int32)
+
+        for j in range(self.story_length):
+
+            encoder_batch_input_data[j:self.story_length, j] = self.image_embeddings[story_index][j]
+
+            if reverse:
+                encoder_batch_input_data[j] = np.flip(encoder_batch_input_data[j], axis=0)
+
+            # TODO: this should be optimized in the database instead of in the generating process
+            temp_story = self.story_sentences[story_index][j].tolist()
+            end_index = temp_story.index(2)
+            temp_story[end_index] = 0
+            decoder_batch_input_data[j] = np.array(temp_story)
+
+            sentence = self.story_sentences[story_index][j]
+            for word_index in range(len(sentence)):
+                if word_index > 0:
+                    decoder_batch_target_data[j, word_index - 1, sentence[word_index]] = 1
+
+        return encoder_batch_input_data, decoder_batch_input_data, decoder_batch_target_data
+
     def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False):
 
-
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
-        approximate_batch_size = story_batch_size * self.story_length  # Actual batch size
 
         while 1:
             if shuffle:
                 permutation = np.random.permutation(self.num_samples)
-                print("generating with permutation")
             else:
                 permutation = range(self.num_samples)
 
-            encoder_batch_input_data = np.zeros((approximate_batch_size, self.story_length, self.image_embeddings_size))
-            decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
-            decoder_batch_target_data = np.zeros((approximate_batch_size, self.sentences_length, self.number_of_tokens),
-                                                 dtype=np.int32)
+            for i in range(0, self.num_samples, story_batch_size):
 
-            for i in range(self.num_samples):
-                current_story_index = permutation[i]
-                for j in range(self.story_length):
-                    encoder_row_start_range = ((i % story_batch_size) * self.story_length) + j
-                    encoder_row_end_range = ((i % story_batch_size) * self.story_length) + self.story_length
+                batch_stories_indicies = permutation[i:i + story_batch_size]
+                number_of_stories_in_batch = len(batch_stories_indicies)
+                approximate_batch_size = number_of_stories_in_batch * self.story_length  # Actual batch size
 
-                    encoder_batch_input_data[encoder_row_start_range: encoder_row_end_range, j] = \
-                        self.image_embeddings[current_story_index][j]
+                encoder_batch_input_data = np.zeros(
+                    (approximate_batch_size, self.story_length, self.image_embeddings_size))
+                decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
+                decoder_batch_target_data = np.zeros(
+                    (approximate_batch_size, self.sentences_length, self.number_of_tokens),
+                    dtype=np.int32)
 
-                    if reverse:
-                        encoder_batch_input_data[encoder_row_start_range] = np.flip(
-                            encoder_batch_input_data[encoder_row_start_range], axis=0)
+                for idx, story_index in enumerate(batch_stories_indicies):
+                    story_samples = self.generate_story_samples_from_index(story_index, reverse)
+                    start = idx * self.story_length
+                    end = start + self.story_length
+                    encoder_batch_input_data[start: end] = story_samples[0]
+                    decoder_batch_input_data[start: end] = story_samples[1]
+                    decoder_batch_target_data[start: end] = story_samples[2]
 
-                    decoder_row = (i % story_batch_size) * self.story_length + j
+                yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
-                    # TODO: this should be optimized in the database instead of in the generating process
-                    temp_story = self.story_sentences[current_story_index][j].tolist()
-                    end_index = temp_story.index(2)
-                    temp_story[end_index] = 0
-                    decoder_batch_input_data[decoder_row] = np.array(temp_story)
-
-                story = self.story_sentences[current_story_index]
-                for sentence_index in range(len(story)):
-                    sentence = story[sentence_index]
-                    for word_index in range(len(sentence)):
-                        if word_index > 0:
-                            decoder_row = ((i % story_batch_size) * self.story_length) + sentence_index
-                            decoder_batch_target_data[decoder_row, word_index - 1, sentence[word_index]] = 1
-
-                if (i + 1) % story_batch_size == 0:
-                    yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
-                    # for sen in decoder_batch_input_data:
-                    # print("Generator: ", nlp.vec_to_sentence(sen, self.vocab_json['idx_to_words']))
-                    encoder_batch_input_data = np.zeros(
-                        (approximate_batch_size, self.story_length, self.image_embeddings_size))
-                    decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
-                    decoder_batch_target_data = np.zeros(
-                        (approximate_batch_size, self.sentences_length, self.number_of_tokens),
-                        dtype=np.int32)
             if only_one_epoch:
                 raise StopIteration()
 

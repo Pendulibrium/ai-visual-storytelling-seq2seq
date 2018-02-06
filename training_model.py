@@ -31,7 +31,10 @@ reverse = False
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
-valid_steps = valid_generator.num_samples / batch_size
+valid_steps = (valid_generator.num_samples // batch_size) + 1
+train_steps = (num_samples // batch_size) + 1
+print("num samples: ", num_samples)
+print("train steps: ", train_steps)
 
 start_time = time.time()
 start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-%d_%H:%M:%S')
@@ -58,7 +61,7 @@ nlpScores = NLPScores('valid')
 # Start training
 
 hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True),
-                           steps_per_epoch=num_samples / batch_size,
+                           steps_per_epoch=train_steps,
                            epochs=epochs, callbacks=[checkpointer, csv_logger, nlpScores])
 
 end_time = time.time()
