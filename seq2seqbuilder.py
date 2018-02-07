@@ -60,9 +60,14 @@ class Seq2SeqBuilder:
         for i in range(0, num_stacked):
             if i == num_stacked - 1:
                 encoder = cell_type(latent_dim, return_state=True, recurrent_dropout=recurrent_dropout,
-                                    dropout=input_dropout,
                                     name=encoder_lstm_name + str(i))
             else:
+
+                if i == 0:
+                    input_dropout = input_dropout
+                else:
+                    input_dropout = 0.0
+                    
                 encoder = cell_type(latent_dim, return_sequences=True, return_state=True,
                                     recurrent_dropout=recurrent_dropout, dropout=input_dropout,
                                     name=encoder_lstm_name + str(i))
@@ -95,12 +100,15 @@ class Seq2SeqBuilder:
                 decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
             else:
                 decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
-                                    recurrent_dropout=recurrent_dropout, dropout=input_dropout,
+                                    recurrent_dropout=recurrent_dropout,
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_outputs[0])
 
+        dropout_layer = Dropout(input_dropout)
+        dropout_outputs = dropout_layer(decoder_outputs[0])
+
         decoder_dense = TimeDistributed(Dense(num_tokens, activation='softmax'), name="dense_layer")
-        decoder_outputs = decoder_dense(decoder_outputs[0])
+        decoder_outputs = decoder_dense(dropout_outputs)
 
         model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
         return model

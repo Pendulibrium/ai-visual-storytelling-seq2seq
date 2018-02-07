@@ -28,6 +28,7 @@ cell_type = GRU
 learning_rate = 0.0001
 gradient_clip_value = 5.0
 reverse = False
+last_k = 3
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
@@ -60,9 +61,9 @@ nlpScores = NLPScores('valid')
 
 # Start training
 
-hist = model.fit_generator(train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True),
-                           steps_per_epoch=train_steps,
-                           epochs=epochs, callbacks=[checkpointer, csv_logger, nlpScores])
+hist = model.fit_generator(
+    train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k),
+    steps_per_epoch=train_steps, epochs=epochs, callbacks=[checkpointer, csv_logger])
 
 end_time = time.time()
 end_time_string = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d_%H:%M:%S')
