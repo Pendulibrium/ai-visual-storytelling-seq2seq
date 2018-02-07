@@ -47,7 +47,7 @@ class ModelDataGenerator:
 
         for j in range(self.story_length):
 
-            encoder_batch_input_data[j:self.story_length, j] = self.image_embeddings[story_index][j]
+            encoder_batch_input_data[j:min(j + last_k, self.story_length), j] = self.image_embeddings[story_index][j]
 
             if reverse:
                 encoder_batch_input_data[j] = np.flip(encoder_batch_input_data[j], axis=0)
@@ -65,7 +65,7 @@ class ModelDataGenerator:
 
         return encoder_batch_input_data, decoder_batch_input_data, decoder_batch_target_data
 
-    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False):
+    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False, last_k = 5):
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
 
@@ -89,7 +89,7 @@ class ModelDataGenerator:
                     dtype=np.int32)
 
                 for idx, story_index in enumerate(batch_stories_indicies):
-                    story_samples = self.generate_story_samples_from_index(story_index, reverse)
+                    story_samples = self.generate_story_samples_from_index(story_index, reverse, last_k)
                     start = idx * self.story_length
                     end = start + self.story_length
                     encoder_batch_input_data[start: end] = story_samples[0]
