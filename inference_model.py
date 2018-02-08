@@ -4,7 +4,7 @@ from result_visualisation import Inference
 import time as time
 
 dataset_type = "valid"
-model_name = "2018-01-29_00:37:26-2018-01-31_00:01:42"
+model_name = "2018-02-04_10:27:57-2018-02-05_21:51:13"
 model_file_name = "./trained_models/" + model_name + ".h5"
 
 # model_file_name = "trained_models/2018-01-18_17:39:24-2018-01-20_18:50:39:image_to_text_gru.h5"
@@ -17,5 +17,5 @@ t = time.time()
 # inference.predict_all(batch_size=64, references_file_name='',
 #                       hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + ".txt")
 beam_size = 10
-inference.predict_all_beam_search(batch_size=65, beam_size=beam_size, hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + "_beam"+str(beam_size)+".txt")
+inference.predict_all_beam_search(batch_size=600, beam_size=beam_size, hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + "_beam"+str(beam_size)+".txt")
 print((time.time() - t) / 60.0)
