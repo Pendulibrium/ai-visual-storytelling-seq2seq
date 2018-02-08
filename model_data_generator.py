@@ -62,6 +62,7 @@ class ModelDataGenerator:
             else:
                 text_encoder_batch_input_data[j] = self.story_sentences[story_index][j - 1]
 
+            # TODO: we should remove end
             temp_story = self.story_sentences[story_index][j].tolist()
             end_index = temp_story.index(2)
             temp_story[end_index] = 0
