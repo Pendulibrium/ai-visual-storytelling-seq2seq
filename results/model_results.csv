@@ -3,3 +3,4 @@ num_samples,duration,num_epochs,loss,val_loss,num_layers,cell_type,activation,hi
 200775,30:00:00h,100,0.2139,None,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-01_16:22:39.csv,./trained_models/2018-02-01_16:22:39-2018-02-03_00:22:15.h5,False, Added reccurence dropout of 0.2
 200775,16:15:28h,50,2.00876955564,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-03_14:00:00.csv,./trained_models/2018-02-03_14:00:00-2018-02-04_06:15:29.h5,False, Input dropout of 0.5
 200775,35:23:15h,110,1.47597208434,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-04_10:27:57.csv,./trained_models/2018-02-04_10:27:57-2018-02-05_21:51:13.h5,False, Input dropout of 0.5
+200775,13:00:00h,50,1.844,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-07_13:55:01.csv,./trained_models/2018-02-07_13:55:01-2018-02-08_03:15:08,False, dropout: input image and before softmax of 0.5, sending last 3 images. Very good results
