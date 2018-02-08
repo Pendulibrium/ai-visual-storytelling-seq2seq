@@ -22,7 +22,9 @@ words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
 epochs = 50  # Number of epochs to train for.
-latent_dim = 1024  # Latent dimensionality of the encoding space.
+image_encoder_latent_dim = 1024  # Latent dimensionality of the encoding space.
+sentence_encoder_latent_dim = 512
+
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
 cell_type = GRU
@@ -43,10 +45,14 @@ start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-
 
 # Build model
 builder = Seq2SeqBuilder()
-model = builder.build_encoder_decoder_model(latent_dim, words_to_idx, word_embedding_size, num_decoder_tokens,
+model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
+                                            word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
-                                            recurrent_dropout=0.0, input_dropout=0.5)
-plot_model(model, show_shapes=True, to_file='model.png')
+                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
+
+from keras.utils import plot_model
+plot_model(model, to_file='model.png', show_shapes=True)
+
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
@@ -89,7 +95,7 @@ writer.write(num_samples=5 * num_samples, duration=duration_string, num_epochs=e
              val_loss=val_loss,
              num_layers=num_of_stacked_rnn,
              cell_type=str(cell_type.__name__).lower(),
-             activation='tanh', hidden_dimension=latent_dim, learning_rate=learning_rate,
+             activation='tanh', hidden_dimension=image_encoder_latent_dim, learning_rate=learning_rate,
              gradient_clipping_value=gradient_clip_value,
              optimizer=type(optimizer).__name__.lower(),
              loss_history_filename=csv_logger_filename, model_filename=model_filename, reverse_sequence=reverse,

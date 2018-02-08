@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout, Concatenate
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
@@ -12,7 +12,10 @@ class Seq2SeqBuilder:
     def __init__(self):
         return
 
-    def get_embedding_layer(self, words_to_idx, word_embedding_size, num_tokens, decoder_input_shape):
+    # TODO: we should optimize this method.
+    # Best way is to load the data once in the memory and consecutive calls should just return the
+    # layer instead of loading all of the data again
+    def get_embedding_layer(self, words_to_idx, word_embedding_size, num_tokens, name):
         embeddings_index = {}
         # GLOVE word weights for 6 billion words for word_embedding_size = 300
         f = open('glove.6B.300d.txt')
@@ -39,13 +42,18 @@ class Seq2SeqBuilder:
                                     weights=[embedding_matrix],
                                     mask_zero=True,
                                     trainable=False,
-                                    name="embedding_layer")
+                                    name=name)
 
         return embedding_layer
 
-    def build_encoder_decoder_model(self, latent_dim, words_to_idx, word_embedding_size, num_tokens, num_stacked,
+    def build_encoder_decoder_model(self, image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
+                                    word_embedding_size, num_tokens, num_stacked,
                                     encoder_input_shape, decoder_input_shape, cell_type, masking=False,
-                                    recurrent_dropout=0.0, input_dropout=0.0):
+                                    recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=False):
+
+        if not include_sentence_encoder:
+            sentence_encoder_latent_dim = 0
+
         # Shape (num_samples, 4096), 4096 is the image embedding length
         encoder_inputs = Input(shape=encoder_input_shape, name="encoder_input_layer")
 
@@ -59,7 +67,7 @@ class Seq2SeqBuilder:
 
         for i in range(0, num_stacked):
             if i == num_stacked - 1:
-                encoder = cell_type(latent_dim, return_state=True, recurrent_dropout=recurrent_dropout,
+                encoder = cell_type(image_encoder_latent_dim, return_state=True, recurrent_dropout=recurrent_dropout,
                                     name=encoder_lstm_name + str(i))
             else:
 
@@ -67,8 +75,8 @@ class Seq2SeqBuilder:
                     input_dropout = input_dropout
                 else:
                     input_dropout = 0.0
-                    
-                encoder = cell_type(latent_dim, return_sequences=True, return_state=True,
+
+                encoder = cell_type(image_encoder_latent_dim, return_sequences=True, return_state=True,
                                     recurrent_dropout=recurrent_dropout, dropout=input_dropout,
                                     name=encoder_lstm_name + str(i))
 
@@ -82,24 +90,50 @@ class Seq2SeqBuilder:
 
         encoder_states = encoder_outputs[1:]
 
+        # Defining sentence encoder
+
+        if include_sentence_encoder:
+            # We can use the same inpt shape as the decoder
+            encoder_sentence_inputs = Input(shape=decoder_input_shape, name="sentence_encoder_input_layer")
+            # Embedding layer that we don't train
+            sentence_encoder_embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens,
+                                                                        'sentence_embedding_layer')
+            sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
+
+            encoder_sentence_lstm_name = "sentence_encoder_"
+            sentence_encoder = cell_type(sentence_encoder_latent_dim, return_state=True,
+                                         recurrent_dropout=recurrent_dropout,
+                                         name=encoder_sentence_lstm_name + str(0))
+
+            sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
+            sentence_encoder_states = sentence_encoder_outputs[1:]
+
+            initial_encoder_states = []
+            for i in range(len(sentence_encoder_states)):
+                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+                initial_encoder_states.append(merged_decoder_states)
+        else:
+            initial_encoder_states = encoder_states
+
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
 
         # Embedding layer that we don't train
-        embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens, decoder_input_shape)
+        embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens,
+                                                   'decoder_embedding_layer')
         embedding_outputs = embedding_layer(decoder_inputs)
 
         # Defining decoder layer
         decoder_lstm_name = "decoder_layer_"
-
+        decoder_latent_dim = image_encoder_latent_dim + sentence_encoder_latent_dim
         for i in range(0, num_stacked):
 
             if i == 0:
-                decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
+                decoder = cell_type(decoder_latent_dim, return_sequences=True, return_state=True,
                                     name=decoder_lstm_name + str(i))
-                decoder_outputs = decoder(embedding_outputs, initial_state=encoder_states)
+                decoder_outputs = decoder(embedding_outputs, initial_state=initial_encoder_states)
             else:
-                decoder = cell_type(latent_dim, return_sequences=True, return_state=True,
+                decoder = cell_type(decoder_latent_dim, return_sequences=True, return_state=True,
                                     recurrent_dropout=recurrent_dropout,
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_outputs[0])
@@ -110,7 +144,11 @@ class Seq2SeqBuilder:
         decoder_dense = TimeDistributed(Dense(num_tokens, activation='softmax'), name="dense_layer")
         decoder_outputs = decoder_dense(dropout_outputs)
 
-        model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+        if include_sentence_encoder:
+            model = Model([encoder_inputs, encoder_sentence_inputs, decoder_inputs], decoder_outputs)
+        else:
+            model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
         return model
 
     def get_number_of_layers(self, model, layer_prefix):
