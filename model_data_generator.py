@@ -36,10 +36,11 @@ class ModelDataGenerator:
         if you sent batch_size 64 it will generate the batch size of 65.
     '''
 
-    def generate_story_samples_from_index(self, story_index, reverse=False, last_k=5):
+    def generate_story_samples_from_index(self, story_index, reverse=False, last_k=5, sentence_embedding=True):
 
         encoder_batch_input_data = np.zeros(
             (self.story_length, self.story_length, self.image_embeddings_size))
+        text_encoder_batch_input_data = np.zeros((self.story_length, self.sentences_length), dtype=np.int32)
         decoder_batch_input_data = np.zeros((self.story_length, self.sentences_length), dtype=np.int32)
         decoder_batch_target_data = np.zeros(
             (self.story_length, self.sentences_length, self.number_of_tokens),
@@ -53,6 +54,14 @@ class ModelDataGenerator:
                 encoder_batch_input_data[j] = np.flip(encoder_batch_input_data[j], axis=0)
 
             # TODO: this should be optimized in the database instead of in the generating process
+
+            if j == 0:
+                empty_sentece = np.zeros((self.sentences_length))
+                empty_sentece[0] = 1
+                text_encoder_batch_input_data[j] = empty_sentece
+            else:
+                text_encoder_batch_input_data[j] = self.story_sentences[story_index][j - 1]
+
             temp_story = self.story_sentences[story_index][j].tolist()
             end_index = temp_story.index(2)
             temp_story[end_index] = 0
@@ -63,9 +72,13 @@ class ModelDataGenerator:
                 if word_index > 0:
                     decoder_batch_target_data[j, word_index - 1, sentence[word_index]] = 1
 
-        return encoder_batch_input_data, decoder_batch_input_data, decoder_batch_target_data
+        if sentence_embedding:
+            return encoder_batch_input_data, text_encoder_batch_input_data, decoder_batch_input_data, decoder_batch_target_data
+        else:
+            return encoder_batch_input_data, decoder_batch_input_data, decoder_batch_target_data
 
-    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False, last_k = 5):
+    def multiple_samples_per_story_generator(self, reverse=False, only_one_epoch=False, shuffle=False, last_k=5,
+                                             sentence_embedding=True):
 
         story_batch_size = int(np.round(self.batch_size / float(self.story_length)))  # Number of stories
 
@@ -83,20 +96,30 @@ class ModelDataGenerator:
 
                 encoder_batch_input_data = np.zeros(
                     (approximate_batch_size, self.story_length, self.image_embeddings_size))
+                text_encoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length),
+                                                         dtype=np.int32)
                 decoder_batch_input_data = np.zeros((approximate_batch_size, self.sentences_length), dtype=np.int32)
                 decoder_batch_target_data = np.zeros(
                     (approximate_batch_size, self.sentences_length, self.number_of_tokens),
                     dtype=np.int32)
 
                 for idx, story_index in enumerate(batch_stories_indicies):
-                    story_samples = self.generate_story_samples_from_index(story_index, reverse, last_k)
+                    story_samples = self.generate_story_samples_from_index(story_index, reverse, last_k, sentence_embedding)
                     start = idx * self.story_length
                     end = start + self.story_length
                     encoder_batch_input_data[start: end] = story_samples[0]
-                    decoder_batch_input_data[start: end] = story_samples[1]
-                    decoder_batch_target_data[start: end] = story_samples[2]
+                    text_encoder_batch_input_data[start: end] = story_samples[1]
+                    decoder_batch_input_data[start: end] = story_samples[2]
+                    decoder_batch_target_data[start: end] = story_samples[3]
 
-                yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
+                if sentence_embedding:
+                    # print(text_encoder_batch_input_data.shape)
+                    # print(text_encoder_batch_input_data[0])
+                    # print(decoder_batch_input_data[0])
+                    # print(text_encoder_batch_input_data[1])
+                    yield ([encoder_batch_input_data, text_encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
+                else:
+                    yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
 
             if only_one_epoch:
                 raise StopIteration()

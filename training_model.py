@@ -11,6 +11,7 @@ from model_data_generator import ModelDataGenerator
 from seq2seqbuilder import Seq2SeqBuilder
 from report.report_writer import *
 from util import util
+from keras.utils import plot_model
 
 vocab_json = json.load(open('./dataset/vist2017_vocabulary.json'))
 train_dataset = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_train.hdf5', 'r')
@@ -45,7 +46,7 @@ builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(latent_dim, words_to_idx, word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
                                             recurrent_dropout=0.0, input_dropout=0.5)
-
+plot_model(model, show_shapes=True, to_file='model.png')
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
@@ -60,6 +61,9 @@ csv_logger = CSVLogger(csv_logger_filename, separator=',', append=False)
 nlpScores = NLPScores('valid')
 
 # Start training
+
+# train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k,
+#                                                          only_one_epoch=True, sentence_embedding=True)
 
 hist = model.fit_generator(
     train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k),
