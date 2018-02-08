@@ -271,7 +271,7 @@ class Inference:
                 max_score_index = np.argmin(decoded[1][i])
                 # print("Decoded", nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
                 hypotheses.append(nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
-            break
+            
         if references_file_name:
             original_file = open("./results/" + references_file_name, "w")
             original_sentences_with_new_line = map(lambda x: x + "\n", references)
