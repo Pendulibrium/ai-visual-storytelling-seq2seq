@@ -261,7 +261,7 @@ class Inference:
         references = []
         hypotheses = []
 
-        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True, last_k=3):
             encoder_batch_input_data = batch[0][0]
             original_sentences_input = batch[0][1]
             print(encoder_batch_input_data.shape)
@@ -271,7 +271,7 @@ class Inference:
                 max_score_index = np.argmin(decoded[1][i])
                 # print("Decoded", nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
                 hypotheses.append(nlp.vec_to_sentence(decoded[0][i][max_score_index], self.idx_to_words))
-            
+
         if references_file_name:
             original_file = open("./results/" + references_file_name, "w")
             original_sentences_with_new_line = map(lambda x: x + "\n", references)
