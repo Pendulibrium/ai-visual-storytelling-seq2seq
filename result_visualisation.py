@@ -283,6 +283,80 @@ class Inference:
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
 
+    def predict_helper(self, input_sequence, encoder_sentence, sentence_length):
+
+        num_stories = input_sequence.shape[0]
+
+        decoded_sentences = np.zeros((num_stories, sentence_length), dtype='int32')
+        states_value = self.encoder_model.predict(input_sequence)
+        states_value_shape = states_value.shape
+        states_value = [states_value]
+        for i in range(self.num_stacked_layers - 1):
+            states_value.append(np.zeros(states_value_shape))
+        # TODO: check if the type is list
+
+        target_seq = np.zeros((num_stories, 1), dtype='int32')
+        target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
+
+        stop_condition = False
+        i = 0
+
+        while not stop_condition:
+            output = self.decoder_model.predict([target_seq] + states_value)
+            output_tokens = output[0]
+
+            sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
+
+            if i >= sentence_length or sampled_word_index == 2:
+                break
+
+            decoded_sentences[:, i] = sampled_word_index
+            target_seq[0:num_stories, 0] = sampled_word_index
+
+            states_value = output[1:]
+            i += 1
+
+        return decoded_sentences
+
+    # TODO: we should send the reverse params
+    def predict_with_k_im_and_sntc_embedding(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name=''):
+
+        data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
+        count = 0
+
+        references = []
+        hypotheses = []
+
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
+            count += 1
+            print("batch_number: ", count)
+            encoder_batch_input_data = batch[0][0]
+            encoder_batch_sentence_input_data = batch[0][1]
+            original_sentences_input = batch[0][2]
+
+
+            encoder_sentence = encoder_batch_sentence_input_data[0]
+            for i in range(encoder_batch_input_data.shape[0]):
+                decoded = self.predict_helper(encoder_batch_input_data[i], encoder_sentence,
+                                              sentence_length)
+                encoder_sentence = decoded
+                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                result = nlp.vec_to_sentence(decoded, self.idx_to_words)
+                hypotheses.append(result)
+                references.append(original)
+
+        if references_file_name:
+            original_file = open("./results/" + references_file_name, "w")
+            original_sentences_with_new_line = map(lambda x: x + "\n", references)
+            original_file.writelines(original_sentences_with_new_line)
+            original_file.close()
+
+        hypotheses_file = open(hypotheses_file_name, "w")
+        hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
+        hypotheses_file.writelines(hypotheses_sentences_with_new_line)
+        hypotheses_file.close()
+
+
     def get_number_of_sentences(self, live_sentences):
         num_sentences = 0
         for sentences in live_sentences:
