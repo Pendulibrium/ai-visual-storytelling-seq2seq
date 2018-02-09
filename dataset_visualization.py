@@ -6,7 +6,7 @@ story_plot = StoryPlot(stories_data_set_path='./dataset/vist_dataset/validate_da
 
 train_dataset = h5py.File('./dataset/image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
 story_ids = train_dataset['story_ids']
-hypothesis = open('./results/2018-01-29_00:37:26-2018-01-31_00:01:42/hypotheses_valid.txt').read().split('\n')
+hypothesis = open('./results/2018-02-08_16:58:54-2018-02-09_12:21:40/hypotheses_valid.txt').read().split('\n')
 
 story_index = 0
 
