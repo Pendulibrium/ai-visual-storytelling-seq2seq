@@ -163,9 +163,11 @@ class Seq2SeqBuilder:
         model = load_model(model_path)
         return self.build_encoder_decoder_inference(model)
 
-    def build_encoder_decoder_inference(self, model):
+    def build_encoder_decoder_inference(self, model, include_sentence_encoder=True):
 
         latent_dim = 0
+        initial_encoder_states = []
+        initial_input = []
 
         encoder_inputs = Input(shape=model.get_layer("encoder_input_layer").get_config()['batch_input_shape'][1:])
         print("encoder inputs shape: ", encoder_inputs.shape)
@@ -192,9 +194,30 @@ class Seq2SeqBuilder:
                 encoder_outputs = encoder(encoder_outputs[0])
                 encoder.set_weights(weights)
 
-        encoder_states = list(encoder_outputs[1:])
+        encoder_states = encoder_outputs[1:]
 
-        encoder_model = Model(encoder_inputs, encoder_states)
+        if include_sentence_encoder:
+
+            encoder_sentence_inputs = Input(shape=(None,))
+
+            sentence_encoder_embedding_layer = model.get_layer('sentence_embedding_layer')
+            sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
+
+            encoder_sentence_lstm_name = "sentence_encoder_"
+            sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
+
+            sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
+            sentence_encoder_states = sentence_encoder_outputs[1:]
+
+            initial_input = [encoder_inputs, encoder_sentence_inputs]
+            for i in range(len(sentence_encoder_states)):
+                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+                initial_encoder_states.append(merged_decoder_states)
+        else:
+            initial_input = encoder_inputs
+            initial_encoder_states = [encoder_states]
+
+        encoder_model = Model(initial_input, initial_encoder_states)
 
         decoder_inputs = Input(shape=(None,))
 
