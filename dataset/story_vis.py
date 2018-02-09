@@ -17,7 +17,7 @@ def show_story(story_index):
 
     train_dataset = h5py.File('./image_embeddings_to_sentence/stories_to_index_valid.hdf5', 'r')
     story_ids = train_dataset['story_ids']
-    hypothesis = open('../results/2018-02-03_14:00:00-2018-02-04_06:15:29/hypotheses_valid.txt').read().split('\n')
+    hypothesis = open('../results/2018-02-07_13:55:01-2018-02-08_03:15:08/hypotheses_valid.txt').read().split('\n')
 
     story_id = story_ids[story_index]
     hypotheses_sentences = hypothesis[(story_index * 5): (story_index * 5) + 5]

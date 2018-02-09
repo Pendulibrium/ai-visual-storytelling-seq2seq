@@ -18,6 +18,8 @@ t = time.time()
 #                       hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + ".txt")
 #beam_size = 10
 #inference.predict_all_beam_search(batch_size=600, beam_size=beam_size, hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + "_beam"+str(beam_size)+".txt")
-inference.predict_with_k_im_and_sntc_embedding(batch_size=64, references_file_name='',
+inference.predict_all(batch_size=64, references_file_name='',
                        hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + ".txt")
 print((time.time() - t) / 60.0)
+
+#a = [2101 - we had a great time , 2110 - he was so excited to see his brother [male] .]

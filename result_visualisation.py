@@ -221,7 +221,7 @@ class Inference:
         return decoded_sentences
 
     # TODO: we should send the reverse params
-    def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name=''):
+    def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name='', sentence_embedding=True):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
@@ -232,14 +232,27 @@ class Inference:
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
             count += 1
             print("batch_number: ", count)
-            encoder_batch_input_data = batch[0][0]
-            original_sentences_input = batch[0][1]
-
-            decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
+            if sentence_embedding:
+                encoder_batch_input_data = batch[0][0]
+                encoder_batch_sentence_input_data = batch[0][1]
+                original_sentences_input = batch[0][2]
+                encoder_sentence = encoder_batch_sentence_input_data[0]
+            else:
+                encoder_batch_input_data = batch[0][0]
+                original_sentences_input = batch[0][1]
+                decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
 
             for i in range(encoder_batch_input_data.shape[0]):
-                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
+
+                if sentence_embedding:
+                    decoded = self.predict_helper(encoder_batch_input_data[i], encoder_sentence,
+                                                  sentence_length)
+                    encoder_sentence = decoded[0]
+                    original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                    result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
+                else:
+                    original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                    result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(result)
                 references.append(original)
 
