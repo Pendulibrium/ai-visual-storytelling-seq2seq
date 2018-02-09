@@ -50,9 +50,6 @@ model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_e
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
                                             recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
 
-from keras.utils import plot_model
-plot_model(model, to_file='model.png', show_shapes=True)
-
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
