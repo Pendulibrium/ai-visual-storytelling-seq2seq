@@ -285,10 +285,10 @@ class Inference:
 
     def predict_helper(self, input_sequence, encoder_sentence, sentence_length):
 
+        input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
         num_stories = input_sequence.shape[0]
-
         decoded_sentences = np.zeros((num_stories, sentence_length), dtype='int32')
-        states_value = self.encoder_model.predict(input_sequence)
+        states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
         states_value_shape = states_value.shape
         states_value = [states_value]
         for i in range(self.num_stacked_layers - 1):
@@ -339,10 +339,12 @@ class Inference:
             for i in range(encoder_batch_input_data.shape[0]):
                 decoded = self.predict_helper(encoder_batch_input_data[i], encoder_sentence,
                                               sentence_length)
-                encoder_sentence = decoded
+                encoder_sentence = decoded[0]
                 original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                result = nlp.vec_to_sentence(decoded, self.idx_to_words)
+                result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
                 hypotheses.append(result)
+                #print("Original:", original)
+                #print("Decoded:",result)
                 references.append(original)
 
         if references_file_name:

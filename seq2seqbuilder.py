@@ -203,7 +203,7 @@ class Seq2SeqBuilder:
             sentence_encoder_embedding_layer = model.get_layer('sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
 
-            encoder_sentence_lstm_name = "sentence_encoder_"
+            encoder_sentence_lstm_name = "sentence_encoder_0"
             sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
 
             sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
@@ -212,6 +212,7 @@ class Seq2SeqBuilder:
             initial_input = [encoder_inputs, encoder_sentence_inputs]
             for i in range(len(sentence_encoder_states)):
                 merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+                new_latent_dim = merged_decoder_states.shape[1]
                 initial_encoder_states.append(merged_decoder_states)
         else:
             initial_input = encoder_inputs
@@ -219,9 +220,10 @@ class Seq2SeqBuilder:
 
         encoder_model = Model(initial_input, initial_encoder_states)
 
+
         decoder_inputs = Input(shape=(None,))
 
-        embedding_layer = model.get_layer("embedding_layer")
+        embedding_layer = model.get_layer("decoder_embedding_layer")
         embedding_outputs = embedding_layer(decoder_inputs)
 
         decoder_prefix = "decoder_layer_"
@@ -231,13 +233,13 @@ class Seq2SeqBuilder:
             # decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_h2]
             decoder_states_inputs = []
             for i in range(num_decoder):
-                decoder_states_inputs.append(Input(shape=(latent_dim,)))
+                decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
         else:  # TODO : test if this works with stacked LSTM model
             # decoder_states_inputs = [decoder_state_input_h1, decoder_state_input_c]
             decoder_states_inputs = []
             for i in range(num_decoder):
-                decoder_states_inputs.append(Input(shape=(latent_dim,)))
-                decoder_states_inputs.append(Input(shape=(latent_dim,)))
+                decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
+                decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
 
         decoder_states = []
         for i in range(num_decoder):
