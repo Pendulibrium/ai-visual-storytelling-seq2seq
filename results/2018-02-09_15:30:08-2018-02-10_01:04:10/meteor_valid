@@ -1,0 +1,12 @@
+Meteor version: 1.5
+
+Eval ID:        meteor-1.5-wo-en-norm-0.4_1.5_0.35_0.55-ex_st_sy_pa-1.0_0.2_0.6_0.8
+
+Language:       English
+Format:         plaintext
+Task:           HTER
+Modules:        exact stem synonym paraphrase
+Weights:        1.0 0.2 0.6 0.8
+Parameters:     0.4 1.5 0.35 0.55
+
+Error: test and reference not same length

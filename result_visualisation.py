@@ -229,7 +229,7 @@ class Inference:
         references = []
         hypotheses = []
 
-        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True):
+        for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True, last_k=3):
             count += 1
             print("batch_number: ", count)
             if sentence_embedding:

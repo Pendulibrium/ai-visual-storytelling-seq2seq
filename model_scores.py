@@ -1,8 +1,8 @@
 import commands
 
 # Calculating Meteor score
-dataset_type = 'train'
-results_model_dir = "./results/2018-02-04_10:27:57-2018-02-05_21:51:13/"
+dataset_type = 'valid'
+results_model_dir = "./results/2018-02-09_15:30:08-2018-02-10_01:04:10/"
 beam_size = 1
 
 if beam_size > 1:
