@@ -306,7 +306,6 @@ class Inference:
         states_value = [states_value]
         for i in range(self.num_stacked_layers - 1):
             states_value.append(np.zeros(states_value_shape))
-        # TODO: check if the type is list
 
         target_seq = np.zeros((num_stories, 1), dtype='int32')
         target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
@@ -331,7 +330,7 @@ class Inference:
 
         return decoded_sentences
 
-    # TODO: we should send the reverse params
+    # TODO: delete
     def predict_with_k_im_and_sntc_embedding(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name=''):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
@@ -350,26 +349,28 @@ class Inference:
 
             encoder_sentence = encoder_batch_sentence_input_data[0]
             for i in range(encoder_batch_input_data.shape[0]):
-                decoded = self.predict_helper(encoder_batch_input_data[i], encoder_sentence,
-                                              sentence_length)
-                encoder_sentence = decoded[0]
-                original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
-                hypotheses.append(result)
-                #print("Original:", original)
-                #print("Decoded:",result)
-                references.append(original)
+                a=1
+               # decoded = self.predict_helper(encoder_batch_input_data[i], encoder_sentence,
+               #                               sentence_length)
+               # encoder_sentence = decoded[0]
+               # original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+               # result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
+               # hypotheses.append(result)
+               # #print("Original:", original)
+               # #print("Decoded:",result)
+               # references.append(original)
+            print(i)
 
-        if references_file_name:
-            original_file = open("./results/" + references_file_name, "w")
-            original_sentences_with_new_line = map(lambda x: x + "\n", references)
-            original_file.writelines(original_sentences_with_new_line)
-            original_file.close()
-
-        hypotheses_file = open(hypotheses_file_name, "w")
-        hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
-        hypotheses_file.writelines(hypotheses_sentences_with_new_line)
-        hypotheses_file.close()
+        # if references_file_name:
+        #     original_file = open("./results/" + references_file_name, "w")
+        #     original_sentences_with_new_line = map(lambda x: x + "\n", references)
+        #     original_file.writelines(original_sentences_with_new_line)
+        #     original_file.close()
+        #
+        # hypotheses_file = open(hypotheses_file_name, "w")
+        # hypotheses_sentences_with_new_line = map(lambda x: x + "\n", hypotheses)
+        # hypotheses_file.writelines(hypotheses_sentences_with_new_line)
+        # hypotheses_file.close()
 
 
     def get_number_of_sentences(self, live_sentences):
