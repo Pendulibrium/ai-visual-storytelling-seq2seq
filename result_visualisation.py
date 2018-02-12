@@ -320,10 +320,11 @@ class Inference:
             output_tokens = output[0]
 
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
-            j = 2
-            while sampled_word_index in decoded_sentences:
-                sampled_word_index = np.argsort(output_tokens[:, 0, :], axis=1)[-j].astype(dtype='int32')
-                j += 1
+            if i > 0:
+                j = 2
+                while sampled_word_index in decoded_sentences:
+                    sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
+                    j += 1
 
             if i >= sentence_length or sampled_word_index == 2:
                 break
