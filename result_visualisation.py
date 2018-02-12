@@ -250,13 +250,13 @@ class Inference:
                 if sentence_embedding:
                     if i % 5 == 0:
                         encoder_sentence = encoder_batch_sentence_input_data[i]
-                        # words = []
+                        words = []
                     decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i], encoder_sentence,
-                                                                     sentence_length)
-                    encoder_sentence = decoded[0]
+                                                                     sentence_length, words)
+                    encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                    # words = words + decoded[0]
-                    result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
+                    words = words + decoded.tolist()
+                    result = nlp.vec_to_sentence(decoded, self.idx_to_words)
 
                 else:
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
@@ -304,11 +304,11 @@ class Inference:
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
 
-    def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_length):
+    def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_length, words):
 
         input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
         num_stories = input_sequence.shape[0]
-        decoded_sentences = np.zeros((num_stories, sentence_length), dtype='int32')
+        decoded_sentences = np.zeros((sentence_length), dtype='int32')
         states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
         states_value_shape = states_value.shape
         states_value = [states_value]
@@ -327,10 +327,16 @@ class Inference:
 
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
 
+            if i > 0:
+                j = 1
+                while sampled_word_index in decoded_sentences or sampled_word_index in words:
+                    sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
+                    j += 1
+
             if i >= sentence_length or sampled_word_index == 2:
                 break
 
-            decoded_sentences[:, i] = sampled_word_index
+            decoded_sentences[i] = sampled_word_index
             target_seq[0:num_stories, 0] = sampled_word_index
 
             states_value = output[1:]

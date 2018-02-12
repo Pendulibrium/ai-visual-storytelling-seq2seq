@@ -109,15 +109,15 @@ class ModelDataGenerator:
                     start = idx * self.story_length
                     end = start + self.story_length
                     encoder_batch_input_data[start: end] = story_samples[0]
-                    text_encoder_batch_input_data[start: end] = story_samples[1]
-                    decoder_batch_input_data[start: end] = story_samples[2]
-                    decoder_batch_target_data[start: end] = story_samples[3]
+                    if sentence_embedding:
+                        text_encoder_batch_input_data[start: end] = story_samples[1]
+                        decoder_batch_input_data[start: end] = story_samples[2]
+                        decoder_batch_target_data[start: end] = story_samples[3]
+                    else:
+                        decoder_batch_input_data[start: end] = story_samples[1]
+                        decoder_batch_target_data[start: end] = story_samples[2]
 
                 if sentence_embedding:
-                    # print(text_encoder_batch_input_data.shape)
-                    # print(text_encoder_batch_input_data[0])
-                    # print(decoder_batch_input_data[0])
-                    # print(text_encoder_batch_input_data[1])
                     yield ([encoder_batch_input_data, text_encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)
                 else:
                     yield ([encoder_batch_input_data, decoder_batch_input_data], decoder_batch_target_data)

@@ -21,7 +21,7 @@ valid_generator = ModelDataGenerator(valid_dataset, vocab_json, 64)
 words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
-epochs = 25  # Number of epochs to train for.
+epochs = 50  # Number of epochs to train for.
 image_encoder_latent_dim = 1024  # Latent dimensionality of the encoding space.
 sentence_encoder_latent_dim = 512
 
@@ -31,7 +31,7 @@ cell_type = GRU
 learning_rate = 0.0001
 gradient_clip_value = 5.0
 reverse = False
-last_k = 3
+last_k = 2
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
@@ -48,7 +48,7 @@ builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
                                             word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
-                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
+                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=False)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
@@ -69,7 +69,8 @@ nlpScores = NLPScores('valid')
 #                                                          only_one_epoch=True, sentence_embedding=True)
 
 hist = model.fit_generator(
-    train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k),
+    train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k,
+                                                         sentence_embedding=False),
     steps_per_epoch=train_steps, epochs=epochs, callbacks=[checkpointer, csv_logger])
 
 end_time = time.time()
