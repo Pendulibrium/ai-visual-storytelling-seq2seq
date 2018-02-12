@@ -231,11 +231,13 @@ class Inference:
 
         for batch in data_generator.multiple_samples_per_story_generator(reverse=False, only_one_epoch=True, last_k=3):
             count += 1
+
             print("batch_number: ", count)
             if sentence_embedding:
                 encoder_batch_input_data = batch[0][0]
                 encoder_batch_sentence_input_data = batch[0][1]
                 original_sentences_input = batch[0][2]
+                print(len(original_sentences_input))
                 encoder_sentence = encoder_batch_sentence_input_data[0]
             else:
                 encoder_batch_input_data = batch[0][0]
