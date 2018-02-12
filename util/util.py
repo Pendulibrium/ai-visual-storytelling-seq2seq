@@ -22,3 +22,7 @@ def sentences_to_story(open_file_path, save_file_path, num_sentences=5):
         stories_with_new_line = map(lambda x: x + "\n", stories)
         stories_file.writelines(stories_with_new_line)
         stories_file.close()
+
+
+sentences_to_story(open_file_path='../results/2018-02-09_15:30:08-2018-02-10_01:04:10/hypotheses_valid.txt',
+                    save_file_path='../results/2018-02-09_15:30:08-2018-02-10_01:04:10/hypotheses_story_valid.txt')

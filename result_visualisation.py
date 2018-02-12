@@ -237,8 +237,9 @@ class Inference:
                 encoder_batch_input_data = batch[0][0]
                 encoder_batch_sentence_input_data = batch[0][1]
                 original_sentences_input = batch[0][2]
+
                 print(len(original_sentences_input))
-                encoder_sentence = encoder_batch_sentence_input_data[0]
+
             else:
                 encoder_batch_input_data = batch[0][0]
                 original_sentences_input = batch[0][1]
@@ -247,11 +248,16 @@ class Inference:
             for i in range(encoder_batch_input_data.shape[0]):
 
                 if sentence_embedding:
+                    if i % 5 == 0:
+                        encoder_sentence = encoder_batch_sentence_input_data[i]
+                        # words = []
                     decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i], encoder_sentence,
                                                                      sentence_length)
                     encoder_sentence = decoded[0]
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
+                    # words = words + decoded[0]
                     result = nlp.vec_to_sentence(decoded[0], self.idx_to_words)
+
                 else:
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
                     result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
@@ -320,11 +326,6 @@ class Inference:
             output_tokens = output[0]
 
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
-            if i > 0:
-                j = 2
-                while sampled_word_index in decoded_sentences:
-                    sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
-                    j += 1
 
             if i >= sentence_length or sampled_word_index == 2:
                 break
