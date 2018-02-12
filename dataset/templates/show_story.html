@@ -40,13 +40,15 @@
   }
 
 
+
+
 </script>
 
 <style>
+
 .main-container {
     margin: 2%
 }
-
 
 
 </style>
@@ -61,7 +63,10 @@
         <div class="col-2">
             <img src="{{ data.image_filenames[loop.index0] }}" alt="" class="img-fluid">
             <p>{{data.original_sentences[loop.index0]}}</p>
-            <p>{{data.hypotheses_sentences[loop.index0]}}</p>
+            {% set rowloop = loop %}
+            {% for item in data.hypotheses_sentences %}
+                <p>{{data.hypotheses_sentences[loop.index0][rowloop.index0]}}</p>
+            {% endfor %}
         </div>
         {% endfor %}
 
