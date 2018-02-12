@@ -19,7 +19,7 @@ t = time.time()
 #beam_size = 10
 #inference.predict_all_beam_search(batch_size=600, beam_size=beam_size, hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + "_beam"+str(beam_size)+".txt")
 inference.predict_all(batch_size=50, references_file_name='',
-                       hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + ".txt")
+                       hypotheses_file_name="./results/"+ model_name +"/hypotheses_" +dataset_type + "_no_dups.txt")
 print((time.time() - t) / 60.0)
 
 #a = [2101 - we had a great time , 2110 - he was so excited to see his brother [male] .]
