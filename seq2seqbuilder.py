@@ -159,9 +159,9 @@ class Seq2SeqBuilder:
                 count += 1
         return count
 
-    def build_encoder_decoder_inference_from_file(self, model_path):
+    def build_encoder_decoder_inference_from_file(self, model_path, include_sentence_encoder=True):
         model = load_model(model_path)
-        return self.build_encoder_decoder_inference(model)
+        return self.build_encoder_decoder_inference(model, include_sentence_encoder)
 
     def build_encoder_decoder_inference(self, model, include_sentence_encoder=True):
 
@@ -196,6 +196,7 @@ class Seq2SeqBuilder:
 
         encoder_states = encoder_outputs[1:]
 
+
         if include_sentence_encoder:
 
             encoder_sentence_inputs = Input(shape=(None,))
@@ -216,7 +217,8 @@ class Seq2SeqBuilder:
                 initial_encoder_states.append(merged_decoder_states)
         else:
             initial_input = encoder_inputs
-            initial_encoder_states = [encoder_states]
+            initial_encoder_states = encoder_states
+            new_latent_dim = latent_dim
 
         encoder_model = Model(initial_input, initial_encoder_states)
 
