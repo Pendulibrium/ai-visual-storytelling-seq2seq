@@ -221,7 +221,7 @@ class Inference:
 
     # TODO: we should send the reverse params
     def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name='',
-                    sentence_embedding=True):
+                    sentence_embedding=True, no_duplicates=False):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
@@ -243,24 +243,41 @@ class Inference:
             else:
                 encoder_batch_input_data = batch[0][0]
                 original_sentences_input = batch[0][1]
+                # fast prediction with duplicates
                 decoded = self.predict_batch(encoder_batch_input_data, sentence_length)
 
+            words = [self.words_to_idx["<UNK>"]]
             for i in range(encoder_batch_input_data.shape[0]):
 
                 if sentence_embedding:
                     if i % 5 == 0:
                         encoder_sentence = encoder_batch_sentence_input_data[i]
-                        words = []
-                    decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i], encoder_sentence,
-                                                                     sentence_length, words)
+                        words = [self.words_to_idx["<UNK>"]]
+                    decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
+                                                                     encoder_sentence=encoder_sentence,
+                                                                     sentence_embed_boolean=True,
+                                                                     sentence_length=sentence_length, words=words)
                     encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                    words = words + decoded.tolist()
+                    if no_duplicates:
+                        words = words + decoded.tolist()
                     result = nlp.vec_to_sentence(decoded, self.idx_to_words)
 
                 else:
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                    result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
+
+                    if no_duplicates:
+                        if i % 5 == 0:
+                            words = [self.words_to_idx["<UNK>"]]
+                        #reusing same function
+                        decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
+                                                                         encoder_sentence=None,
+                                                                         sentence_embed_boolean=False,
+                                                                         sentence_length=sentence_length, words=words)
+                        words = words + decoded.tolist()
+                        result = nlp.vec_to_sentence(decoded, self.idx_to_words)
+                    else:
+                        result = nlp.vec_to_sentence(decoded[i], self.idx_to_words)
                 hypotheses.append(result)
                 references.append(original)
 
@@ -304,12 +321,18 @@ class Inference:
         hypotheses_file.writelines(hypotheses_sentences_with_new_line)
         hypotheses_file.close()
 
-    def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_length, words):
+    def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_embed_boolean,
+                                          sentence_length, words):
 
         input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
         num_stories = input_sequence.shape[0]
         decoded_sentences = np.zeros((sentence_length), dtype='int32')
-        states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
+
+        if sentence_embed_boolean:
+            states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
+        else:
+            states_value = self.encoder_model.predict(input_sequence)
+
         states_value_shape = states_value.shape
         states_value = [states_value]
         for i in range(self.num_stacked_layers - 1):
