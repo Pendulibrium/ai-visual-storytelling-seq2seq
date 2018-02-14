@@ -253,10 +253,18 @@ class Inference:
                     if i % 5 == 0:
                         encoder_sentence = encoder_batch_sentence_input_data[i]
                         words = [self.words_to_idx["<UNK>"]]
-                    decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
-                                                                     encoder_sentence=encoder_sentence,
-                                                                     sentence_embed_boolean=True,
-                                                                     sentence_length=sentence_length, words=words)
+                    if no_duplicates:
+                        decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
+                                                                         encoder_sentence=encoder_sentence,
+                                                                         sentence_embed_boolean=True,
+                                                                         sentence_length=sentence_length, words=words,
+                                                                         no_duplicates=True)
+                    else:
+                        decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
+                                                                         encoder_sentence=encoder_sentence,
+                                                                         sentence_embed_boolean=True,
+                                                                         sentence_length=sentence_length, words=words,
+                                                                         no_duplicates=False)
                     encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
                     if no_duplicates:
@@ -269,7 +277,7 @@ class Inference:
                     if no_duplicates:
                         if i % 5 == 0:
                             words = [self.words_to_idx["<UNK>"]]
-                        #reusing same function
+                        # reusing same function
                         decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
                                                                          encoder_sentence=None,
                                                                          sentence_embed_boolean=False,
@@ -322,7 +330,7 @@ class Inference:
         hypotheses_file.close()
 
     def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_embed_boolean,
-                                          sentence_length, words):
+                                          sentence_length, words, no_duplicates):
 
         input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
         num_stories = input_sequence.shape[0]
@@ -349,12 +357,12 @@ class Inference:
             output_tokens = output[0]
 
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
-
-            if i > 0:
-                j = 1
-                while sampled_word_index in decoded_sentences or sampled_word_index in words:
-                    sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
-                    j += 1
+            if no_duplicates:
+                if i > 0:
+                    j = 1
+                    while sampled_word_index in decoded_sentences or sampled_word_index in words:
+                        sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
+                        j += 1
 
             if i >= sentence_length or sampled_word_index == 2:
                 break

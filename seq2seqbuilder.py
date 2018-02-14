@@ -196,7 +196,6 @@ class Seq2SeqBuilder:
 
         encoder_states = encoder_outputs[1:]
 
-
         if include_sentence_encoder:
 
             encoder_sentence_inputs = Input(shape=(None,))
@@ -221,7 +220,6 @@ class Seq2SeqBuilder:
             new_latent_dim = latent_dim
 
         encoder_model = Model(initial_input, initial_encoder_states)
-
 
         decoder_inputs = Input(shape=(None,))
 
