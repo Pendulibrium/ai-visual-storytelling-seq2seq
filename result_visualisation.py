@@ -221,7 +221,7 @@ class Inference:
 
     # TODO: we should send the reverse params
     def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name='',
-                    sentence_embedding=True, no_duplicates=False):
+                    sentence_embedding=True, no_duplicates=False, beam_search=False, beam_size=3):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
@@ -260,17 +260,23 @@ class Inference:
                                                                          sentence_length=sentence_length, words=words,
                                                                          no_duplicates=True)
                     else:
-                        decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
+                        if beam_search:
+
+                            decoded = self.slow_beam_search(encoder_batch_input_data[i], encoder_sentence)
+                            decoded = np.array(decoded)
+                            print("Hola")
+                        else:
+                            decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
                                                                          encoder_sentence=encoder_sentence,
                                                                          sentence_embed_boolean=True,
                                                                          sentence_length=sentence_length, words=words,
                                                                          no_duplicates=False)
+
                     encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
                     if no_duplicates:
                         words = words + decoded.tolist()
                     result = nlp.vec_to_sentence(decoded, self.idx_to_words)
-
                 else:
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
 
@@ -374,6 +380,94 @@ class Inference:
             i += 1
 
         return decoded_sentences
+
+    def slow_beam_search_helper(self, live_sentence, state_values):
+        probs = []
+        new_states = []
+
+        for i in range(len(live_sentence)):
+            target_seq = np.zeros((1, 1))
+            last_word = live_sentence[i][-1]
+            target_seq[0, 0] = last_word
+            output = self.decoder_model.predict([target_seq] + state_values[i])
+
+            prob = output[0]
+            states = output[1:]
+            reshaped_prob = np.reshape(prob, (self.vocab_size))
+            probs.append(reshaped_prob)
+            new_states.append(list(states))
+
+        return probs, new_states
+
+    def slow_beam_search(self, images, encoder_sentence, max_decoder_seq_length=22, images_per_story=5,
+                                  image_embed_size=4096, beam_size=3):
+        decoded_sentences = []
+        scores = []
+        m = 1
+
+        images = images.reshape(1, 5, 4096)
+        state_value = self.encoder_model.predict([images, encoder_sentence])
+        state_value_shape = state_value.shape
+        live_beam = 1
+        live_sentence = [[self.words_to_idx["<START>"]]]
+        live_score = [0]
+        dead_beam = 0
+        dead_sentence = []
+        dead_scores = []
+        state_values = []
+
+        for i in range(beam_size):
+
+            state_value_tmp = [state_value]
+            for k in range(self.num_stacked_layers - 1):
+                state_value_tmp.append(np.zeros(state_value_shape))
+
+            state_values.append(state_value_tmp)
+
+        j = 0
+
+        while live_beam and dead_beam < beam_size:
+
+            probs, new_states = self.slow_beam_search_helper(live_sentence, state_values)
+
+            if j == 0:
+                state_values = []
+                for _ in range(beam_size):
+                    state_values.append(new_states[0])
+
+            else:
+                state_values = new_states
+
+            j += 1
+            cand_scores = np.array(live_score)[:, None] - np.log(probs)
+            cand_flat = cand_scores.flatten()
+
+            ranks_flat = cand_flat.argsort()[:(beam_size - dead_beam)]
+            live_score = cand_flat[ranks_flat]
+
+            live_sentence = [live_sentence[r // self.vocab_size] + [r % self.vocab_size] for r in ranks_flat]
+
+            zombie = [s[-1] == 2 or len(s) >= max_decoder_seq_length for s in live_sentence]
+
+            # add zombies to the dead
+            dead_sentence += [s for s, z in zip(live_sentence, zombie) if z]  # remove first label == empty
+            dead_scores += [s for s, z in zip(live_score, zombie) if z]
+            dead_beam = len(dead_sentence)
+            # remove zombies from the living
+            live_sentence = [s for s, z in zip(live_sentence, zombie) if not z]
+            live_score = [s for s, z in zip(live_score, zombie) if not z]
+            state_values = [s for s, z in zip(state_values, zombie) if not z]
+
+            live_beam = len(live_sentence)
+
+        decoded_sentences = dead_sentence + live_sentence
+        scores = dead_scores + live_score
+
+        best_idx = np.argmin(scores)
+        return decoded_sentences[best_idx]
+
+
+
 
     def get_number_of_sentences(self, live_sentences):
         num_sentences = 0
