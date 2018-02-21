@@ -219,7 +219,12 @@ class Seq2SeqBuilder:
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
-        encoder_model = Model(initial_input, initial_encoder_states)
+
+        # Test 1 return image embeddings
+        im_model = Model(initial_input, encoder_states)
+        #Test 2 return sentence embeddings
+        sent_model = Model(initial_input, sentence_encoder_states)
+        # encoder_model = Model(initial_input, initial_encoder_states)
 
         decoder_inputs = Input(shape=(None,))
 
@@ -264,4 +269,5 @@ class Seq2SeqBuilder:
         decoder_outputs = decoder_dense(decoder_outputs[0])
         decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
 
-        return encoder_model, decoder_model
+        return im_model, sent_model
+        # return encoder_model, decoder_model
