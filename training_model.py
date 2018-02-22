@@ -48,7 +48,7 @@ builder = Seq2SeqBuilder()
 model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
                                             word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
-                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=False)
+                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
@@ -70,7 +70,7 @@ nlpScores = NLPScores('valid')
 
 hist = model.fit_generator(
     train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k,
-                                                         sentence_embedding=False),
+                                                         sentence_embedding=True),
     steps_per_epoch=train_steps, epochs=epochs, callbacks=[checkpointer, csv_logger])
 
 end_time = time.time()

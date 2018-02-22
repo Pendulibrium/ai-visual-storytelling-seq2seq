@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout, Concatenate
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout, Concatenate, Conv1D, MaxPooling1D, Flatten
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
@@ -40,7 +40,7 @@ class Seq2SeqBuilder:
         # Embedding layer that we don't train
         embedding_layer = Embedding(num_tokens, word_embedding_size,
                                     weights=[embedding_matrix],
-                                    mask_zero=True,
+                                    mask_zero=False,
                                     trainable=False,
                                     name=name)
 
@@ -99,19 +99,36 @@ class Seq2SeqBuilder:
             sentence_encoder_embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens,
                                                                         'sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
-
-            encoder_sentence_lstm_name = "sentence_encoder_"
-            sentence_encoder = cell_type(sentence_encoder_latent_dim, return_state=True,
-                                         recurrent_dropout=recurrent_dropout,
-                                         name=encoder_sentence_lstm_name + str(0))
-
-            sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
-            sentence_encoder_states = sentence_encoder_outputs[1:]
+            #print(sentence_embedding_outputs.shape)
+            # TODO This is the new part
+            sentence_conv1_layer = Conv1D(filters=64, kernel_size=3, strides=1, activation='tanh', input_shape=decoder_input_shape, name="sentence_encoder_conv")
+            # TODO conv1d doesn't support masking, we should see what should we do about it
+            sentence_encoder_outputs = sentence_conv1_layer(sentence_embedding_outputs)
+            #print(sentence_encoder_outputs.shape)
+            max_pool_layer = MaxPooling1D(pool_size=2)
+            sentence_encoder_outputs = max_pool_layer(sentence_encoder_outputs)
+            #print(sentence_encoder_outputs.shape)
+            sentence_encoder_outputs = Flatten()(sentence_encoder_outputs)
+            #print(sentence_encoder_outputs.shape)
+            sentence_encoder_dense = Dense(512, name="sentence_encoder_dense")
+            sentence_encoder_outputs = sentence_encoder_dense(sentence_encoder_outputs)
+            #print(sentence_encoder_outputs.shape)
+            # encoder_sentence_lstm_name = "sentence_encoder_"
+            # sentence_encoder = cell_type(sentence_encoder_latent_dim, return_state=True,
+            #                              recurrent_dropout=recurrent_dropout,
+            #                              name=encoder_sentence_lstm_name + str(0))
+            #
+            # sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
+            # sentence_encoder_states = sentence_encoder_outputs[1:]
 
             initial_encoder_states = []
-            for i in range(len(sentence_encoder_states)):
-                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-                initial_encoder_states.append(merged_decoder_states)
+            # print(len(encoder_states))
+            # for i in range(len(sentence_encoder_states)):
+            #merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+            #initial_encoder_states.append(merged_decoder_states)
+
+            merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
+            initial_encoder_states.append(merged_decoder_states)
         else:
             initial_encoder_states = encoder_states
 
