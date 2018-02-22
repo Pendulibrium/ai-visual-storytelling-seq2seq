@@ -274,8 +274,8 @@ class Inference:
 
                     encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
-                    if no_duplicates:
-                        words = words + decoded.tolist()
+                    #if no_duplicates:
+                    #    words = words + decoded.tolist()
                     result = nlp.vec_to_sentence(decoded, self.idx_to_words)
                 else:
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
@@ -339,6 +339,8 @@ class Inference:
                                           sentence_length, words, no_duplicates):
 
         input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
+        #print(encoder_sentence.shape)
+        encoder_sentence = encoder_sentence.reshape(1,encoder_sentence.shape[0])
         num_stories = input_sequence.shape[0]
         decoded_sentences = np.zeros((sentence_length), dtype='int32')
 
@@ -363,12 +365,12 @@ class Inference:
             output_tokens = output[0]
 
             sampled_word_index = np.argmax(output_tokens[:, 0, :], axis=1).astype(dtype='int32')
-            if no_duplicates:
-                if i > 0:
-                    j = 1
-                    while sampled_word_index in decoded_sentences or sampled_word_index in words:
-                        sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
-                        j += 1
+            # if no_duplicates:
+            #     if i > 0:
+            #         j = 1
+            #         while sampled_word_index in decoded_sentences or sampled_word_index in words:
+            #             sampled_word_index = np.argsort(output_tokens[0, 0, :])[-j]
+            #             j += 1
 
             if i >= sentence_length or sampled_word_index == 2:
                 break
