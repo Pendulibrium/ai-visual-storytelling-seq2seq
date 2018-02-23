@@ -218,32 +218,48 @@ class Seq2SeqBuilder:
 
         if include_sentence_encoder:
 
-            encoder_sentence_inputs = Input(shape=(None,))
+            encoder_sentence_inputs = Input(shape=(22,))
 
             sentence_encoder_embedding_layer = model.get_layer('sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
+            sentence_conv1_layer = model.get_layer('sentence_encoder_conv')
+            sentence_encoder_outputs = sentence_conv1_layer(sentence_embedding_outputs)
+            # print(sentence_encoder_outputs.shape)
+            max_pool_layer = MaxPooling1D(pool_size=2)
+            sentence_encoder_outputs = max_pool_layer(sentence_encoder_outputs)
+            # print(sentence_encoder_outputs.shape)
+            sentence_encoder_outputs = Flatten()(sentence_encoder_outputs)
+            # print(sentence_encoder_outputs.shape)
+            sentence_encoder_dense = model.get_layer("sentence_encoder_dense")
+            sentence_encoder_outputs = sentence_encoder_dense(sentence_encoder_outputs)
 
-            encoder_sentence_lstm_name = "sentence_encoder_0"
-            sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
 
-            sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
-            sentence_encoder_states = sentence_encoder_outputs[1:]
+
+
+            # encoder_sentence_lstm_name = "sentence_encoder_0"
+            # sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
+            #
+            # sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
+            # sentence_encoder_states = sentence_encoder_outputs[1:]
 
             initial_input = [encoder_inputs, encoder_sentence_inputs]
-            for i in range(len(sentence_encoder_states)):
-                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-                new_latent_dim = merged_decoder_states.shape[1]
-                initial_encoder_states.append(merged_decoder_states)
+            merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
+            initial_encoder_states.append(merged_decoder_states)
+            new_latent_dim = merged_decoder_states.shape[1]
+            # for i in range(len(sentence_encoder_states)):
+            #     merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+            #     new_latent_dim = merged_decoder_states.shape[1]
+            #     initial_encoder_states.append(merged_decoder_states)
         else:
             initial_input = encoder_inputs
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
         # Test 1 return image embeddings
-        im_model = Model(initial_input, encoder_states)
+        #im_model = Model(initial_input, encoder_states)
         # Test 2 return sentence embeddings
-        sent_model = Model(initial_input, sentence_encoder_states)
-        # encoder_model = Model(initial_input, initial_encoder_states)
+        #sent_model = Model(initial_input, sentence_encoder_states)
+        encoder_model = Model(initial_input, initial_encoder_states)
 
         decoder_inputs = Input(shape=(None,))
 
@@ -288,5 +304,5 @@ class Seq2SeqBuilder:
         decoder_outputs = decoder_dense(decoder_outputs[0])
         decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
 
-        return im_model, sent_model
-        # return encoder_model, decoder_model
+        #return im_model, sent_model
+        return encoder_model, decoder_model
