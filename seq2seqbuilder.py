@@ -1,5 +1,6 @@
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout, Concatenate, Conv1D, MaxPooling1D, Flatten
+from keras.layers import Input, LSTM, Dense, Embedding, Masking, GRU, TimeDistributed, Dropout, Concatenate, Conv1D, \
+    MaxPooling1D, Flatten
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, CSVLogger, TensorBoard
 from keras.models import load_model
@@ -15,7 +16,7 @@ class Seq2SeqBuilder:
     # TODO: we should optimize this method.
     # Best way is to load the data once in the memory and consecutive calls should just return the
     # layer instead of loading all of the data again
-    def get_embedding_layer(self, words_to_idx, word_embedding_size, num_tokens, name):
+    def get_embedding_layer(self, words_to_idx, word_embedding_size, num_tokens, mask_zero, name):
         embeddings_index = {}
         # GLOVE word weights for 6 billion words for word_embedding_size = 300
         f = open('glove.6B.300d.txt')
@@ -40,7 +41,7 @@ class Seq2SeqBuilder:
         # Embedding layer that we don't train
         embedding_layer = Embedding(num_tokens, word_embedding_size,
                                     weights=[embedding_matrix],
-                                    mask_zero=False,
+                                    mask_zero=mask_zero,
                                     trainable=False,
                                     name=name)
 
@@ -97,22 +98,24 @@ class Seq2SeqBuilder:
             encoder_sentence_inputs = Input(shape=decoder_input_shape, name="sentence_encoder_input_layer")
             # Embedding layer that we don't train
             sentence_encoder_embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens,
-                                                                        'sentence_embedding_layer')
+                                                                        mask_zero=False,
+                                                                        name='sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
-            #print(sentence_embedding_outputs.shape)
+            # print(sentence_embedding_outputs.shape)
             # TODO This is the new part
-            sentence_conv1_layer = Conv1D(filters=64, kernel_size=3, strides=1, activation='tanh', input_shape=decoder_input_shape, name="sentence_encoder_conv")
+            sentence_conv1_layer = Conv1D(filters=64, kernel_size=3, strides=1, activation='tanh',
+                                          input_shape=decoder_input_shape, name="sentence_encoder_conv")
             # TODO conv1d doesn't support masking, we should see what should we do about it
             sentence_encoder_outputs = sentence_conv1_layer(sentence_embedding_outputs)
-            #print(sentence_encoder_outputs.shape)
+            # print(sentence_encoder_outputs.shape)
             max_pool_layer = MaxPooling1D(pool_size=2)
             sentence_encoder_outputs = max_pool_layer(sentence_encoder_outputs)
-            #print(sentence_encoder_outputs.shape)
+            # print(sentence_encoder_outputs.shape)
             sentence_encoder_outputs = Flatten()(sentence_encoder_outputs)
-            #print(sentence_encoder_outputs.shape)
+            # print(sentence_encoder_outputs.shape)
             sentence_encoder_dense = Dense(512, name="sentence_encoder_dense")
             sentence_encoder_outputs = sentence_encoder_dense(sentence_encoder_outputs)
-            #print(sentence_encoder_outputs.shape)
+            # print(sentence_encoder_outputs.shape)
             # encoder_sentence_lstm_name = "sentence_encoder_"
             # sentence_encoder = cell_type(sentence_encoder_latent_dim, return_state=True,
             #                              recurrent_dropout=recurrent_dropout,
@@ -124,8 +127,8 @@ class Seq2SeqBuilder:
             initial_encoder_states = []
             # print(len(encoder_states))
             # for i in range(len(sentence_encoder_states)):
-            #merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-            #initial_encoder_states.append(merged_decoder_states)
+            # merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+            # initial_encoder_states.append(merged_decoder_states)
 
             merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
             initial_encoder_states.append(merged_decoder_states)
@@ -136,8 +139,8 @@ class Seq2SeqBuilder:
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
 
         # Embedding layer that we don't train
-        embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens,
-                                                   'decoder_embedding_layer')
+        embedding_layer = self.get_embedding_layer(words_to_idx, word_embedding_size, num_tokens, mask_zero=True,
+                                                   name='decoder_embedding_layer')
         embedding_outputs = embedding_layer(decoder_inputs)
 
         # Defining decoder layer
@@ -236,10 +239,9 @@ class Seq2SeqBuilder:
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
-
         # Test 1 return image embeddings
         im_model = Model(initial_input, encoder_states)
-        #Test 2 return sentence embeddings
+        # Test 2 return sentence embeddings
         sent_model = Model(initial_input, sentence_encoder_states)
         # encoder_model = Model(initial_input, initial_encoder_states)
 
