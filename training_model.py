@@ -8,7 +8,7 @@ import json
 import time
 import datetime
 from model_data_generator import ModelDataGenerator
-from seq2seqbuilder import Seq2SeqBuilder
+from seq2seqbuilder import Seq2SeqBuilder, SentenceEncoderCNN, SentenceEncoderRNN
 from report.report_writer import *
 from util import util
 from keras.utils import plot_model
@@ -23,7 +23,7 @@ words_to_idx = vocab_json['words_to_idx']
 batch_size = 13
 epochs = 25  # Number of epochs to train for.
 image_encoder_latent_dim = 1024  # Latent dimensionality of the encoding space.
-sentence_encoder_latent_dim = 512
+sentence_encoder_latent_dim = 128
 
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
@@ -44,10 +44,15 @@ start_time = time.time()
 start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-%d_%H:%M:%S')
 
 # Build model
+encoder_input_shape = (None, 4096)
+decoder_input_shape = (22,)
 builder = Seq2SeqBuilder()
+#sentence_encoder = SentenceEncoderCNN(decoder_input_shape=decoder_input_shape)
+sentence_encoder = SentenceEncoderRNN(cell_type=cell_type, sentence_encoder_latent_dim=sentence_encoder_latent_dim, recurrent_dropout=0.0)
 model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
                                             word_embedding_size, num_decoder_tokens,
-                                            num_of_stacked_rnn, (None, 4096), (22,), cell_type=cell_type, masking=True,
+                                            num_of_stacked_rnn, encoder_input_shape, decoder_input_shape,
+                                            cell_type=cell_type, sentence_encoder=sentence_encoder, masking=True,
                                             recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
