@@ -16,9 +16,13 @@ class SentenceEncoder(object):
     def get_last_layer(self, encoder_states, sentence_embedding_outputs):
         return
 
+    @abc.abstractmethod
+    def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
+        return
+
 
 class SentenceEncoderRNN(SentenceEncoder):
-    def __init__(self, cell_type, sentence_encoder_latent_dim, recurrent_dropout):
+    def __init__(self, cell_type=None, sentence_encoder_latent_dim=None, recurrent_dropout=0.0):
         self.cell_type = cell_type
         self.sentence_encoder_latent_dim = sentence_encoder_latent_dim
         self.recurrent_dropout = recurrent_dropout
@@ -39,9 +43,26 @@ class SentenceEncoderRNN(SentenceEncoder):
             initial_encoder_states.append(merged_decoder_states)
         return initial_encoder_states
 
+    def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
+        encoder_sentence_lstm_name = "sentence_encoder_0"
+        sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
+
+        sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
+        sentence_encoder_states = sentence_encoder_outputs[1:]
+
+        # Merging
+        initial_encoder_states = []
+        new_latent_dim = 0
+        for i in range(len(sentence_encoder_states)):
+            merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+            new_latent_dim = merged_decoder_states.shape[1]
+            initial_encoder_states.append(merged_decoder_states)
+
+        return initial_encoder_states, new_latent_dim
+
 
 class SentenceEncoderCNN(SentenceEncoder):
-    def __init__(self, decoder_input_shape):
+    def __init__(self, decoder_input_shape=None):
         self.decoder_input_shape = decoder_input_shape
 
     def get_last_layer(self, encoder_states, sentence_embedding_outputs):
@@ -59,6 +80,23 @@ class SentenceEncoderCNN(SentenceEncoder):
         merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
         initial_encoder_states.append(merged_decoder_states)
         return initial_encoder_states
+
+    def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
+        sentence_conv1_layer = model.get_layer('sentence_encoder_conv')
+        sentence_encoder_outputs = sentence_conv1_layer(sentence_embedding_outputs)
+        max_pool_layer = MaxPooling1D(pool_size=2)
+        sentence_encoder_outputs = max_pool_layer(sentence_encoder_outputs)
+        sentence_encoder_outputs = Flatten()(sentence_encoder_outputs)
+        sentence_encoder_dense = model.get_layer("sentence_encoder_dense")
+        sentence_encoder_outputs = sentence_encoder_dense(sentence_encoder_outputs)
+
+        # Merging
+        initial_encoder_states = []
+        merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
+        initial_encoder_states.append(merged_decoder_states)
+        new_latent_dim = merged_decoder_states.shape[1]
+
+        return initial_encoder_states, new_latent_dim
 
 
 class Seq2SeqBuilder:
@@ -203,11 +241,11 @@ class Seq2SeqBuilder:
                 count += 1
         return count
 
-    def build_encoder_decoder_inference_from_file(self, model_path, include_sentence_encoder=True):
+    def build_encoder_decoder_inference_from_file(self, model_path, sentence_encoder, include_sentence_encoder=True):
         model = load_model(model_path)
-        return self.build_encoder_decoder_inference(model, include_sentence_encoder)
+        return self.build_encoder_decoder_inference(model, sentence_encoder, include_sentence_encoder)
 
-    def build_encoder_decoder_inference(self, model, include_sentence_encoder=True):
+    def build_encoder_decoder_inference(self, model, sentence_encoder, include_sentence_encoder=True):
 
         latent_dim = 0
         initial_encoder_states = []
@@ -243,34 +281,12 @@ class Seq2SeqBuilder:
         if include_sentence_encoder:
 
             encoder_sentence_inputs = Input(shape=(22,))
+            initial_input = [encoder_inputs, encoder_sentence_inputs]
 
             sentence_encoder_embedding_layer = model.get_layer('sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
-            sentence_conv1_layer = model.get_layer('sentence_encoder_conv')
-            sentence_encoder_outputs = sentence_conv1_layer(sentence_embedding_outputs)
-            # print(sentence_encoder_outputs.shape)
-            max_pool_layer = MaxPooling1D(pool_size=2)
-            sentence_encoder_outputs = max_pool_layer(sentence_encoder_outputs)
-            # print(sentence_encoder_outputs.shape)
-            sentence_encoder_outputs = Flatten()(sentence_encoder_outputs)
-            # print(sentence_encoder_outputs.shape)
-            sentence_encoder_dense = model.get_layer("sentence_encoder_dense")
-            sentence_encoder_outputs = sentence_encoder_dense(sentence_encoder_outputs)
 
-            # encoder_sentence_lstm_name = "sentence_encoder_0"
-            # sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
-            #
-            # sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
-            # sentence_encoder_states = sentence_encoder_outputs[1:]
-
-            initial_input = [encoder_inputs, encoder_sentence_inputs]
-            merged_decoder_states = layers.concatenate([encoder_states[0], sentence_encoder_outputs], axis=-1)
-            initial_encoder_states.append(merged_decoder_states)
-            new_latent_dim = merged_decoder_states.shape[1]
-            # for i in range(len(sentence_encoder_states)):
-            #     merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-            #     new_latent_dim = merged_decoder_states.shape[1]
-            #     initial_encoder_states.append(merged_decoder_states)
+            initial_encoder_states, new_latent_dim = sentence_encoder.get_last_layer_inference(model, encoder_states, sentence_embedding_outputs)
         else:
             initial_input = encoder_inputs
             initial_encoder_states = encoder_states
