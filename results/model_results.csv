@@ -10,3 +10,4 @@ num_samples,duration,num_epochs,loss,val_loss,num_layers,cell_type,activation,hi
 200775,7:10:37h,19,1.76664380121,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-14_14:33:04.csv,./trained_models/2018-02-14_14:33:04-2018-02-14_21:43:42.h5,False,dropout: input image and before softmax of 0.3, last_k=3, recurrent_dropout = 0.3
 200775,11:12:32h,30,1.01023810202,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-15_10:48:00.csv,./trained_models/2018-02-15_10:48:00-2018-02-15_22:00:32.h5,False,
 200775,8:18:24h,25,1.65418497207,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-22_17:31:22.csv,./trained_models/2018-02-22_17:31:22-2018-02-23_01:49:46.h5,False,
+200775,7:04:44h,25,2.33397364972,-1,2,gru,tanh,1024,0.0001,5.0,adam,./loss_logs/2018-02-26_15:53:55.csv,./trained_models/2018-02-26_15:53:55-2018-02-26_22:58:39.h5,False,
