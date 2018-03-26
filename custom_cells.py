@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 import warnings
+import tensorflow as tf
 
 from keras import backend as K
 from keras import activations
@@ -13,7 +14,9 @@ from keras import constraints
 from keras.engine import Layer
 from keras.engine import InputSpec
 from keras.utils.generic_utils import has_arg
-from keras.layers import RNN, Input
+from keras.layers import RNN, Input, GRU, Dense
+from keras import Model
+from keras.layers.wrappers import Wrapper
 
 # Legacy support.
 from keras.legacy.layers import Recurrent
@@ -79,7 +82,7 @@ class AttGRUCell(Layer):
             True = "after" (CuDNN compatible).
     """
 
-    def __init__(self, units, external_outputs,
+    def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
                  use_bias=True,
@@ -99,7 +102,6 @@ class AttGRUCell(Layer):
                  **kwargs):
         super(AttGRUCell, self).__init__(**kwargs)
         self.units = units
-        self.external_outputs = external_outputs
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
         self.use_bias = use_bias
@@ -123,9 +125,12 @@ class AttGRUCell(Layer):
         self.state_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
+        self.encoder_states = None
 
     def build(self, input_shape):
-        input_dim = input_shape[-1]
+        # Input_shape is [input_shape, constant_shape]
+        # that's why we have to take the last dimension of input_shape, which is our first element
+        input_dim = input_shape[0][-1]
 
         self.kernel = self.add_weight(shape=(input_dim, self.units * 3),
                                       name='kernel',
@@ -140,9 +145,16 @@ class AttGRUCell(Layer):
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
 
-        self.attention_kernel = self.add_weight(
-            shape=(input_shape[-2], input_shape[-2]),
-            name='attention_kernel',
+        self.W_c = self.add_weight(
+            shape=(2 * self.units, self.units),
+            name='W_c',
+            initializer=self.kernel_initializer,
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint)
+
+        self.b_c = self.add_weight(
+            shape=(self.units,),
+            name='b_c',
             initializer=self.kernel_initializer,
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
@@ -202,8 +214,9 @@ class AttGRUCell(Layer):
                 self.recurrent_bias_h = None
         self.built = True
 
-    def call(self, inputs, states, training=None):
+    def call(self, inputs, states, training=None, constants=None):
         h_tm1 = states[0]  # previous memory
+        external_outputs = constants[0]
 
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
@@ -313,7 +326,24 @@ class AttGRUCell(Layer):
         # previous and candidate state mixed by update gate
         h = z * h_tm1 + (1 - z) * hh
 
+        #print("H", h.shape)
+        #print("E", external_outputs.shape)
+        h = tf.expand_dims(h, 1)
 
+        scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
+        #print("Score", scores.shape)
+        a_t = tf.nn.softmax(scores)
+        # print(a_t.shape)
+        a_t = tf.expand_dims(a_t, 2)
+        # print(a_t.shape)
+        c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
+        #print(c_t.shape)
+        c_t = tf.squeeze(c_t, [2])
+        # # print(c_t.shape)
+        h = tf.squeeze(h, [1])
+        h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
+        # # print(h_tld.shape)
+        h = h_tld
 
         if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
@@ -437,7 +467,7 @@ class AttGRU(RNN):
     """
 
     @interfaces.legacy_recurrent_support
-    def __init__(self, units, external_outputs,
+    def __init__(self, units,
                  activation='tanh',
                  recurrent_activation='hard_sigmoid',
                  use_bias=True,
@@ -474,7 +504,7 @@ class AttGRU(RNN):
             dropout = 0.
             recurrent_dropout = 0.
 
-        cell = AttGRUCell(units, external_outputs,
+        cell = AttGRUCell(units,
                           activation=activation,
                           recurrent_activation=recurrent_activation,
                           use_bias=use_bias,
@@ -500,13 +530,20 @@ class AttGRU(RNN):
                                      **kwargs)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
-    def call(self, inputs, mask=None, training=None, initial_state=None):
+    def call(self,
+             inputs,
+             mask=None,
+             training=None,
+             initial_state=None,
+             constants=None):
         self.cell._dropout_mask = None
         self.cell._recurrent_dropout_mask = None
+        #print(initial_states.shape)
         return super(AttGRU, self).call(inputs,
                                         mask=mask,
                                         training=training,
-                                        initial_state=initial_state)
+                                        initial_state=initial_state,
+                                        constants=constants)
 
     @property
     def units(self):
@@ -629,3 +666,124 @@ def _generate_dropout_mask(ones, rate, training=None, count=1):
         dropped_inputs,
         ones,
         training=training)
+
+
+class LuongAttentionWrapper(Wrapper):
+    def __init__(self, layer, **kwargs):
+        super(LuongAttentionWrapper, self).__init__(layer, **kwargs)
+        self.supports_masking = True
+
+    def build(self, input_shape):
+        assert len(input_shape) >= 3
+        self.input_spec = InputSpec(shape=input_shape)
+        child_input_shape = (input_shape[0], 1) + input_shape[2:]
+        #print("Child shape", child_input_shape)
+        if not self.layer.built:
+            self.layer.build(child_input_shape)
+            self.layer.built = True
+
+        super(LuongAttentionWrapper, self).build()
+
+        self.W_c = self.add_weight(
+            shape=(2 * self.layer.units, self.layer.units),
+            name='W_c',
+            initializer=self.layer.kernel_initializer,
+            regularizer=self.layer.kernel_regularizer,
+            constraint=self.layer.kernel_constraint)
+
+        self.b_c = self.add_weight(
+            shape=(self.layer.units,),
+            name='b_c',
+            initializer=self.layer.kernel_initializer,
+            regularizer=self.layer.kernel_regularizer,
+            constraint=self.layer.kernel_constraint)
+
+    def compute_output_shape(self, input_shape):
+        # child_input_shape = (input_shape[0], 1)+input_shape[2:]
+        # print(child_input_shape)
+        # child_output_shape = self.layer.compute_output_shape(child_input_shape)
+        # print(child_output_shape)
+        # timesteps = input_shape[1]
+        # print(timesteps)
+        # return (child_output_shape[0], timesteps) + child_output_shape[1:]
+        return self.layer.compute_output_shape(input_shape)
+
+    # sentence_encoder = self.cell_type(self.sentence_encoder_latent_dim, return_sequences=True, return_state=True,
+    #                                           recurrent_dropout=self.recurrent_dropout,
+    #                                           name=encoder_sentence_lstm_name + str(0))
+    def call(self, inputs, training=None, mask=None, initial_state=None):
+        self.encoder_outputs = initial_state[0]
+        self.encoder_states = initial_state[1]
+        #print(encoder_states.shape)
+        # kwargs = {}
+        # if has_arg(self.layer.call, 'training'):
+        #     kwargs['training'] = training
+        #     kwargs['mask'] = mask
+        #     kwargs['initial_state'] = [initial_state[1]]
+        # uses_learning_phase = False
+
+        input_shape = K.int_shape(inputs)
+        #print("Input_shape", input_shape)
+
+        def step(x, states):
+            print("X shape", x.shape)
+            x = tf.expand_dims(x, 1)
+            print(x.shape)
+            # global uses_learning_phase
+            # proper_rnn_shape = [input_shape[0], 1, input_shape[2]]
+            # print(proper_rnn_shape)
+            # x = K.reshape(x, shape=proper_rnn_shape)
+
+            output, states = self.layer.call(x, initial_state=states)
+            print(output.shape)
+            # if hasattr(output, '_uses_learning_phase'):
+            #     uses_learning_phase = (output._uses_learning_phase or
+            #                            uses_learning_phase)
+
+            # h = tf.expand_dims(h, 1)
+            # print("H", h.shape)
+            # print("E", list(self.encoder_states))
+            # self.encoder_states = np.array(self.encoder_states)
+            # print("E", self.encoder_states.shape)
+            #
+            # scores = tf.reduce_sum(tf.multiply(self.encoder_outputs, h), axis=2)
+            # print(scores.shape)
+            # a_t = tf.nn.softmax(scores)
+            # print(a_t.shape)
+            # a_t = tf.expand_dims(a_t, 2)
+            # print(a_t.shape)
+            # c_t = tf.matmul(tf.transpose(self.encoder_outputs, perm=[0, 2, 1]), a_t)
+            # print(c_t.shape)
+            # c_t = tf.squeeze(c_t, [2])
+            # print(c_t.shape)
+            # h = tf.squeeze(h, [1])
+            # h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
+            # print(h_tld.shape)
+            return output
+
+        _, outputs, _ = K.rnn(step, input,
+                              initial_states=[self.encoder_states],
+                              unroll=self.layer.unroll,
+                              input_length=input_shape[1])
+        y = outputs
+        # if (hasattr(self.layer, 'activity_regularizer') and
+        #         self.layer.activity_regularizer is not None):
+        #     regularization_loss = self.layer.activity_regularizer(y)
+        #     self.add_loss(regularization_loss, inputs)
+        #
+        # if uses_learning_phase:
+        #     y._uses_learning_phase = True
+        return y
+
+
+input_1 = Input(shape=(22, 300))
+encoder = GRU(10, return_sequences=True, return_state=True)
+encoder_outputs, encoder_states = encoder(input_1)
+#print(encoder_outputs.shape)
+initial_states = [encoder_states]
+input_2 = Input(shape=(22, 300))
+#att_cell = AttGRUCell(units=10)
+
+decoder = AttGRU(10, return_sequences=True, return_state=True)
+decoder_outputs, decoder_states = decoder(input_2, initial_state=initial_states, constants=encoder_outputs)
+print(decoder_outputs.shape)
