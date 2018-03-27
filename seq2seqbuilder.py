@@ -7,6 +7,7 @@ from keras.models import load_model
 from keras import layers
 import numpy as np
 import abc
+from custom_cells import AttentionGRU
 
 
 class SentenceEncoder(object):
@@ -27,21 +28,24 @@ class SentenceEncoderRNN(SentenceEncoder):
         self.sentence_encoder_latent_dim = sentence_encoder_latent_dim
         self.recurrent_dropout = recurrent_dropout
 
-    def get_last_layer(self, encoder_states, sentence_embedding_outputs):
+    def get_last_layer(self, sentence_embedding_outputs, encoder_states=None):
         encoder_sentence_lstm_name = "sentence_encoder_"
-        sentence_encoder = self.cell_type(self.sentence_encoder_latent_dim, return_state=True,
+        sentence_encoder = self.cell_type(self.sentence_encoder_latent_dim, return_sequences=True, return_state=True,
                                           recurrent_dropout=self.recurrent_dropout,
                                           name=encoder_sentence_lstm_name + str(0))
 
         sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
         sentence_encoder_states = sentence_encoder_outputs[1:]
 
+        # Legacy code
         # Merge states
-        initial_encoder_states = []
-        for i in range(len(sentence_encoder_states)):
-            merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-            initial_encoder_states.append(merged_decoder_states)
-        return initial_encoder_states
+        # initial_encoder_states = []
+        # for i in range(len(sentence_encoder_states)):
+        #     merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+        #     initial_encoder_states.append(merged_decoder_states)
+        # return initial_encoder_states
+        # returning encoder_outputs, and encoder_states
+        return sentence_encoder_outputs[0], sentence_encoder_states
 
     def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
         encoder_sentence_lstm_name = "sentence_encoder_0"
@@ -193,9 +197,11 @@ class Seq2SeqBuilder:
                                                                         name='sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
 
-            initial_encoder_states = sentence_encoder.get_last_layer(encoder_states, sentence_embedding_outputs)
+            sentence_encoder_outputs, _ = sentence_encoder.get_last_layer(sentence_embedding_outputs)
         else:
             initial_encoder_states = encoder_states
+        #for attention
+        initial_encoder_states = encoder_states
 
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
@@ -207,18 +213,21 @@ class Seq2SeqBuilder:
 
         # Defining decoder layer
         decoder_lstm_name = "decoder_layer_"
-        decoder_latent_dim = image_encoder_latent_dim + sentence_encoder_latent_dim
+        #decoder_latent_dim = image_encoder_latent_dim + sentence_encoder_latent_dim
+        decoder_latent_dim = sentence_encoder_latent_dim
+        decoder_output = embedding_outputs
         for i in range(0, num_stacked):
 
-            if i == 0:
-                decoder = cell_type(decoder_latent_dim, return_sequences=True, return_state=True,
+            if i == num_stacked - 1:
+                decoder = AttentionGRU(decoder_latent_dim, return_sequences=True, return_state=True,
                                     name=decoder_lstm_name + str(i))
-                decoder_outputs = decoder(embedding_outputs, initial_state=initial_encoder_states)
+                decoder_outputs = decoder(decoder_output, initial_state=initial_encoder_states, constants=sentence_encoder_outputs)
             else:
                 decoder = cell_type(decoder_latent_dim, return_sequences=True, return_state=True,
                                     recurrent_dropout=recurrent_dropout,
                                     name=decoder_lstm_name + str(i))
-                decoder_outputs = decoder(decoder_outputs[0])
+                decoder_outputs = decoder(decoder_output)
+            decoder_output = decoder_outputs[0]
 
         dropout_layer = Dropout(input_dropout)
         dropout_outputs = dropout_layer(decoder_outputs[0])

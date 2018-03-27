@@ -22,8 +22,8 @@ words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
 epochs = 25  # Number of epochs to train for.
-image_encoder_latent_dim = 1024  # Latent dimensionality of the encoding space.
-sentence_encoder_latent_dim = 128
+image_encoder_latent_dim = 512  # Latent dimensionality of the encoding space.
+sentence_encoder_latent_dim = 512
 
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
@@ -31,7 +31,7 @@ cell_type = GRU
 learning_rate = 0.0001
 gradient_clip_value = 5.0
 reverse = False
-last_k = 2
+last_k = 3
 
 num_samples = train_generator.num_samples
 num_decoder_tokens = train_generator.number_of_tokens
