@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import warnings
 import tensorflow as tf
 
@@ -12,18 +11,13 @@ from keras import initializers
 from keras import regularizers
 from keras import constraints
 from keras.engine import Layer
-from keras.engine import InputSpec
-from keras.utils.generic_utils import has_arg
 from keras.layers import RNN, Input, GRU, Dense
-from keras import Model
-from keras.layers.wrappers import Wrapper
 
 # Legacy support.
-from keras.legacy.layers import Recurrent
 from keras.legacy import interfaces
 
 
-class AttGRUCell(Layer):
+class LuongAttentionGRUCell(Layer):
     """Cell class for the GRU layer.
 
     # Arguments
@@ -80,6 +74,12 @@ class AttGRUCell(Layer):
         reset_after: GRU convention (whether to apply reset gate after or
             before matrix multiplication). False = "before" (default),
             True = "after" (CuDNN compatible).
+
+        Because the rnn creates the input shape as a list ([original_input_shape, cosntant1_shape, constant2_shape, ..]),
+        if we have constants, we only need the dimensions of our original_input_shape.
+
+        Implementation of the attention in call method is based on the paper [https://arxiv.org/pdf/1508.04025.pdf]
+
     """
 
     def __init__(self, units,
@@ -100,7 +100,7 @@ class AttGRUCell(Layer):
                  implementation=1,
                  reset_after=False,
                  **kwargs):
-        super(AttGRUCell, self).__init__(**kwargs)
+        super(LuongAttentionGRUCell, self).__init__(**kwargs)
         self.units = units
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
@@ -145,6 +145,9 @@ class AttGRUCell(Layer):
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
 
+        # Concatenation kernal that is applied in the final state of attention
+        # new_ht = tanh(W_c([ct, ht]) + b_c), where ct is the context vector
+        # and ht is the hidden state of the (stacked) rnn cell(s)
         self.W_c = self.add_weight(
             shape=(2 * self.units, self.units),
             name='W_c',
@@ -216,7 +219,7 @@ class AttGRUCell(Layer):
 
     def call(self, inputs, states, training=None, constants=None):
         h_tm1 = states[0]  # previous memory
-        external_outputs = constants[0]
+        external_outputs = constants[0] # outputs from the encoder, used for attention
 
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
@@ -326,23 +329,24 @@ class AttGRUCell(Layer):
         # previous and candidate state mixed by update gate
         h = z * h_tm1 + (1 - z) * hh
 
-        #print("H", h.shape)
-        #print("E", external_outputs.shape)
+        # h has shape (batch_size, units)
+        # for the math to work we need h to have shape (batch_size, 1, units)
         h = tf.expand_dims(h, 1)
-
+        # we computer the score as a dot product between the source hidden states and the target hidden state
+        # possible score functions: ht*hs, ht*Wa*hs, Va*tanh(Wa([ht;hs]))
         scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
-        #print("Score", scores.shape)
+        # calculating attention from scores using softmax - this is essentially a weighted average
         a_t = tf.nn.softmax(scores)
-        # print(a_t.shape)
+        # a_t has dimensions (batch_size, timesteps), we need to expand it to (batch_size, timesteps, 1)
         a_t = tf.expand_dims(a_t, 2)
-        # print(a_t.shape)
+        # the context vector is computed as a weighted average over all the source hidden states
         c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
-        #print(c_t.shape)
+        # transormation from (batch_size, units, 1) to (batch_size, units)
         c_t = tf.squeeze(c_t, [2])
-        # # print(c_t.shape)
         h = tf.squeeze(h, [1])
+        # combining the target hidden state with the context vector
+        # and putting them through a layer with learnable parametars
         h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
-        # # print(h_tld.shape)
         h = h_tld
 
         if 0 < self.dropout + self.recurrent_dropout:
@@ -369,11 +373,10 @@ class AttGRUCell(Layer):
                   'recurrent_dropout': self.recurrent_dropout,
                   'implementation': self.implementation,
                   'reset_after': self.reset_after}
-        base_config = super(AttGRUCell, self).get_config()
+        base_config = super(LuongAttentionGRUCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
-class AttGRU(RNN):
+class AttentionGRU(RNN):
     """Gated Recurrent Unit - Cho et al. 2014.
 
     There are two variants. The default one is based on 1406.1078v3 and
@@ -504,7 +507,7 @@ class AttGRU(RNN):
             dropout = 0.
             recurrent_dropout = 0.
 
-        cell = AttGRUCell(units,
+        cell = LuongAttentionGRUCell(units,
                           activation=activation,
                           recurrent_activation=recurrent_activation,
                           use_bias=use_bias,
@@ -521,7 +524,7 @@ class AttGRU(RNN):
                           recurrent_dropout=recurrent_dropout,
                           implementation=implementation,
                           reset_after=reset_after)
-        super(AttGRU, self).__init__(cell,
+        super(AttentionGRU, self).__init__(cell,
                                      return_sequences=return_sequences,
                                      return_state=return_state,
                                      go_backwards=go_backwards,
@@ -538,8 +541,7 @@ class AttGRU(RNN):
              constants=None):
         self.cell._dropout_mask = None
         self.cell._recurrent_dropout_mask = None
-        #print(initial_states.shape)
-        return super(AttGRU, self).call(inputs,
+        return super(AttentionGRU, self).call(inputs,
                                         mask=mask,
                                         training=training,
                                         initial_state=initial_state,
@@ -632,7 +634,7 @@ class AttGRU(RNN):
                   'recurrent_dropout': self.recurrent_dropout,
                   'implementation': self.implementation,
                   'reset_after': self.reset_after}
-        base_config = super(AttGRU, self).get_config()
+        base_config = super(AttentionGRU, self).get_config()
         del base_config['cell']
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -666,124 +668,3 @@ def _generate_dropout_mask(ones, rate, training=None, count=1):
         dropped_inputs,
         ones,
         training=training)
-
-
-class LuongAttentionWrapper(Wrapper):
-    def __init__(self, layer, **kwargs):
-        super(LuongAttentionWrapper, self).__init__(layer, **kwargs)
-        self.supports_masking = True
-
-    def build(self, input_shape):
-        assert len(input_shape) >= 3
-        self.input_spec = InputSpec(shape=input_shape)
-        child_input_shape = (input_shape[0], 1) + input_shape[2:]
-        #print("Child shape", child_input_shape)
-        if not self.layer.built:
-            self.layer.build(child_input_shape)
-            self.layer.built = True
-
-        super(LuongAttentionWrapper, self).build()
-
-        self.W_c = self.add_weight(
-            shape=(2 * self.layer.units, self.layer.units),
-            name='W_c',
-            initializer=self.layer.kernel_initializer,
-            regularizer=self.layer.kernel_regularizer,
-            constraint=self.layer.kernel_constraint)
-
-        self.b_c = self.add_weight(
-            shape=(self.layer.units,),
-            name='b_c',
-            initializer=self.layer.kernel_initializer,
-            regularizer=self.layer.kernel_regularizer,
-            constraint=self.layer.kernel_constraint)
-
-    def compute_output_shape(self, input_shape):
-        # child_input_shape = (input_shape[0], 1)+input_shape[2:]
-        # print(child_input_shape)
-        # child_output_shape = self.layer.compute_output_shape(child_input_shape)
-        # print(child_output_shape)
-        # timesteps = input_shape[1]
-        # print(timesteps)
-        # return (child_output_shape[0], timesteps) + child_output_shape[1:]
-        return self.layer.compute_output_shape(input_shape)
-
-    # sentence_encoder = self.cell_type(self.sentence_encoder_latent_dim, return_sequences=True, return_state=True,
-    #                                           recurrent_dropout=self.recurrent_dropout,
-    #                                           name=encoder_sentence_lstm_name + str(0))
-    def call(self, inputs, training=None, mask=None, initial_state=None):
-        self.encoder_outputs = initial_state[0]
-        self.encoder_states = initial_state[1]
-        #print(encoder_states.shape)
-        # kwargs = {}
-        # if has_arg(self.layer.call, 'training'):
-        #     kwargs['training'] = training
-        #     kwargs['mask'] = mask
-        #     kwargs['initial_state'] = [initial_state[1]]
-        # uses_learning_phase = False
-
-        input_shape = K.int_shape(inputs)
-        #print("Input_shape", input_shape)
-
-        def step(x, states):
-            print("X shape", x.shape)
-            x = tf.expand_dims(x, 1)
-            print(x.shape)
-            # global uses_learning_phase
-            # proper_rnn_shape = [input_shape[0], 1, input_shape[2]]
-            # print(proper_rnn_shape)
-            # x = K.reshape(x, shape=proper_rnn_shape)
-
-            output, states = self.layer.call(x, initial_state=states)
-            print(output.shape)
-            # if hasattr(output, '_uses_learning_phase'):
-            #     uses_learning_phase = (output._uses_learning_phase or
-            #                            uses_learning_phase)
-
-            # h = tf.expand_dims(h, 1)
-            # print("H", h.shape)
-            # print("E", list(self.encoder_states))
-            # self.encoder_states = np.array(self.encoder_states)
-            # print("E", self.encoder_states.shape)
-            #
-            # scores = tf.reduce_sum(tf.multiply(self.encoder_outputs, h), axis=2)
-            # print(scores.shape)
-            # a_t = tf.nn.softmax(scores)
-            # print(a_t.shape)
-            # a_t = tf.expand_dims(a_t, 2)
-            # print(a_t.shape)
-            # c_t = tf.matmul(tf.transpose(self.encoder_outputs, perm=[0, 2, 1]), a_t)
-            # print(c_t.shape)
-            # c_t = tf.squeeze(c_t, [2])
-            # print(c_t.shape)
-            # h = tf.squeeze(h, [1])
-            # h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
-            # print(h_tld.shape)
-            return output
-
-        _, outputs, _ = K.rnn(step, input,
-                              initial_states=[self.encoder_states],
-                              unroll=self.layer.unroll,
-                              input_length=input_shape[1])
-        y = outputs
-        # if (hasattr(self.layer, 'activity_regularizer') and
-        #         self.layer.activity_regularizer is not None):
-        #     regularization_loss = self.layer.activity_regularizer(y)
-        #     self.add_loss(regularization_loss, inputs)
-        #
-        # if uses_learning_phase:
-        #     y._uses_learning_phase = True
-        return y
-
-
-input_1 = Input(shape=(22, 300))
-encoder = GRU(10, return_sequences=True, return_state=True)
-encoder_outputs, encoder_states = encoder(input_1)
-#print(encoder_outputs.shape)
-initial_states = [encoder_states]
-input_2 = Input(shape=(22, 300))
-#att_cell = AttGRUCell(units=10)
-
-decoder = AttGRU(10, return_sequences=True, return_state=True)
-decoder_outputs, decoder_states = decoder(input_2, initial_state=initial_states, constants=encoder_outputs)
-print(decoder_outputs.shape)
