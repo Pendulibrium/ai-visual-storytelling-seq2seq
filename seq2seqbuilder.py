@@ -49,24 +49,25 @@ class SentenceEncoderRNN(SentenceEncoder):
                 initial_encoder_states.append(merged_decoder_states)
             return initial_encoder_states
 
-
-
-    def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
+    def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs, attention=False):
         encoder_sentence_lstm_name = "sentence_encoder_0"
         sentence_encoder = model.get_layer(encoder_sentence_lstm_name)
 
         sentence_encoder_outputs = sentence_encoder(sentence_embedding_outputs)
         sentence_encoder_states = sentence_encoder_outputs[1:]
 
-        # Merging
-        initial_encoder_states = []
-        new_latent_dim = 0
-        for i in range(len(sentence_encoder_states)):
-            merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-            new_latent_dim = merged_decoder_states.shape[1]
-            initial_encoder_states.append(merged_decoder_states)
+        if attention:
+            return sentence_encoder_outputs[0], sentence_encoder_states, sentence_encoder.get_config()['units']
+        else:
+            # Merging
+            initial_encoder_states = []
+            new_latent_dim = 0
+            for i in range(len(sentence_encoder_states)):
+                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+                new_latent_dim = merged_decoder_states.shape[1]
+                initial_encoder_states.append(merged_decoder_states)
 
-        return initial_encoder_states, new_latent_dim
+            return initial_encoder_states, new_latent_dim
 
 
 class SentenceEncoderCNN(SentenceEncoder):
@@ -149,7 +150,8 @@ class Seq2SeqBuilder:
                                     word_embedding_size, num_tokens, num_stacked,
                                     encoder_input_shape, decoder_input_shape, cell_type, sentence_encoder,
                                     masking=False,
-                                    recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=False, attention=False):
+                                    recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=False,
+                                    attention=False):
 
         if not include_sentence_encoder:
             sentence_encoder_latent_dim = 0
@@ -201,7 +203,8 @@ class Seq2SeqBuilder:
                                                                         name='sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
             if attention:
-                sentence_encoder_outputs, _ = sentence_encoder.get_last_layer(sentence_embedding_outputs, attention=True)
+                sentence_encoder_outputs, _ = sentence_encoder.get_last_layer(sentence_embedding_outputs,
+                                                                              attention=True)
                 initial_encoder_states = encoder_states
             else:
                 initial_encoder_states = sentence_encoder.get_last_layer(sentence_embedding_outputs, encoder_states)
@@ -229,13 +232,20 @@ class Seq2SeqBuilder:
             if attention and i == num_stacked - 1:
 
                 decoder = AttentionGRU(decoder_latent_dim, return_sequences=True, return_state=True,
-                                    name=decoder_lstm_name + str(i))
-                decoder_outputs = decoder(decoder_output, initial_state=initial_encoder_states, constants=sentence_encoder_outputs)
+                                       name=decoder_lstm_name + str(i))
+                if i == 0:
+                    decoder_outputs = decoder(decoder_output, initial_state=initial_encoder_states,
+                                              constants=sentence_encoder_outputs)
+                else:
+                    decoder_outputs = decoder(decoder_output, constants=sentence_encoder_outputs)
             else:
                 decoder = cell_type(decoder_latent_dim, return_sequences=True, return_state=True,
                                     recurrent_dropout=recurrent_dropout,
                                     name=decoder_lstm_name + str(i))
-                decoder_outputs = decoder(decoder_output)
+                if i == 0:
+                    decoder_outputs = decoder(decoder_output, initial_state=initial_encoder_states)
+                else:
+                    decoder_outputs = decoder(decoder_output)
             decoder_output = decoder_outputs[0]
 
         dropout_layer = Dropout(input_dropout)
@@ -263,7 +273,7 @@ class Seq2SeqBuilder:
         model = load_model(model_path)
         return self.build_encoder_decoder_inference(model, sentence_encoder, include_sentence_encoder)
 
-    def build_encoder_decoder_inference(self, model, sentence_encoder, include_sentence_encoder=True):
+    def build_encoder_decoder_inference(self, model, sentence_encoder, include_sentence_encoder=True, attention=False):
 
         latent_dim = 0
         initial_encoder_states = []
@@ -304,17 +314,25 @@ class Seq2SeqBuilder:
             sentence_encoder_embedding_layer = model.get_layer('sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
 
-            initial_encoder_states, new_latent_dim = sentence_encoder.get_last_layer_inference(model, encoder_states, sentence_embedding_outputs)
+            if attention:
+                sentence_encoder_outputs, initial_encoder_states, new_latent_dim = sentence_encoder.get_last_layer_inference(
+                    model,
+                    encoder_states,
+                    sentence_embedding_outputs,
+                    attention=attention)
+            else:
+                initial_encoder_states, new_latent_dim = sentence_encoder.get_last_layer_inference(model,
+                                                                                                   encoder_states,
+                                                                                                   sentence_embedding_outputs)
         else:
             initial_input = encoder_inputs
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
-        # Test 1 return image embeddings
-        # im_model = Model(initial_input, encoder_states)
-        # Test 2 return sentence embeddings
-        # sent_model = Model(initial_input, sentence_encoder_states)
-        encoder_model = Model(initial_input, initial_encoder_states)
+        if attention:
+            encoder_model = Model(initial_input, [sentence_encoder_outputs, initial_encoder_states])
+        else:
+            encoder_model = Model(initial_input, initial_encoder_states)
 
         decoder_inputs = Input(shape=(None,))
 
@@ -336,6 +354,8 @@ class Seq2SeqBuilder:
                 decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
                 decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
 
+        decoder_states_inputs.append(Input(shape=(sentence_encoder_outputs.shape[1],)))
+
         decoder_states = []
         for i in range(num_decoder):
 
@@ -347,11 +367,19 @@ class Seq2SeqBuilder:
             decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
 
             if i == 0:
-                decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
+                if i == num_decoder - 1:
+                    decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i],
+                                              constants=decoder_states_inputs[-1])
+                else:
+                    decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
                 decoder.set_weights(weights)
                 decoder_states = decoder_states + list(decoder_outputs[1:])
             else:
-                decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i])
+                if i == num_decoder - 1:
+                    decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i],
+                                              constants=decoder_states_inputs[-1])
+                else:
+                    decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i])
                 decoder.set_weights(weights)
                 decoder_states = decoder_states + list(decoder_outputs[1:])
 
