@@ -28,7 +28,7 @@ class SentenceEncoderRNN(SentenceEncoder):
         self.sentence_encoder_latent_dim = sentence_encoder_latent_dim
         self.recurrent_dropout = recurrent_dropout
 
-    def get_last_layer(self, sentence_embedding_outputs, encoder_states=None):
+    def get_last_layer(self, sentence_embedding_outputs, encoder_states=None, attention=False):
         encoder_sentence_lstm_name = "sentence_encoder_"
         sentence_encoder = self.cell_type(self.sentence_encoder_latent_dim, return_sequences=True, return_state=True,
                                           recurrent_dropout=self.recurrent_dropout,
@@ -39,13 +39,17 @@ class SentenceEncoderRNN(SentenceEncoder):
 
         # Legacy code
         # Merge states
-        # initial_encoder_states = []
-        # for i in range(len(sentence_encoder_states)):
-        #     merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
-        #     initial_encoder_states.append(merged_decoder_states)
-        # return initial_encoder_states
-        # returning encoder_outputs, and encoder_states
-        return sentence_encoder_outputs[0], sentence_encoder_states
+        if attention:
+            # returning encoder_outputs, and encoder_states
+            return sentence_encoder_outputs[0], sentence_encoder_states
+        else:
+            initial_encoder_states = []
+            for i in range(len(sentence_encoder_states)):
+                merged_decoder_states = layers.concatenate([encoder_states[i], sentence_encoder_states[i]], axis=-1)
+                initial_encoder_states.append(merged_decoder_states)
+            return initial_encoder_states
+
+
 
     def get_last_layer_inference(self, model, encoder_states, sentence_embedding_outputs):
         encoder_sentence_lstm_name = "sentence_encoder_0"
@@ -145,7 +149,7 @@ class Seq2SeqBuilder:
                                     word_embedding_size, num_tokens, num_stacked,
                                     encoder_input_shape, decoder_input_shape, cell_type, sentence_encoder,
                                     masking=False,
-                                    recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=False):
+                                    recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=False, attention=False):
 
         if not include_sentence_encoder:
             sentence_encoder_latent_dim = 0
@@ -196,12 +200,13 @@ class Seq2SeqBuilder:
                                                                         mask_zero=False,
                                                                         name='sentence_embedding_layer')
             sentence_embedding_outputs = sentence_encoder_embedding_layer(encoder_sentence_inputs)
-
-            sentence_encoder_outputs, _ = sentence_encoder.get_last_layer(sentence_embedding_outputs)
+            if attention:
+                sentence_encoder_outputs, _ = sentence_encoder.get_last_layer(sentence_embedding_outputs, attention=True)
+                initial_encoder_states = encoder_states
+            else:
+                initial_encoder_states = sentence_encoder.get_last_layer(sentence_embedding_outputs, encoder_states)
         else:
             initial_encoder_states = encoder_states
-        #for attention
-        initial_encoder_states = encoder_states
 
         # Decoder input, should be shape (num_samples, 22)
         decoder_inputs = Input(shape=decoder_input_shape, name="decoder_input_layer")
@@ -213,12 +218,16 @@ class Seq2SeqBuilder:
 
         # Defining decoder layer
         decoder_lstm_name = "decoder_layer_"
-        #decoder_latent_dim = image_encoder_latent_dim + sentence_encoder_latent_dim
-        decoder_latent_dim = sentence_encoder_latent_dim
+        if attention:
+            decoder_latent_dim = sentence_encoder_latent_dim
+        else:
+            decoder_latent_dim = image_encoder_latent_dim + sentence_encoder_latent_dim
+
         decoder_output = embedding_outputs
         for i in range(0, num_stacked):
 
-            if i == num_stacked - 1:
+            if attention and i == num_stacked - 1:
+
                 decoder = AttentionGRU(decoder_latent_dim, return_sequences=True, return_state=True,
                                     name=decoder_lstm_name + str(i))
                 decoder_outputs = decoder(decoder_output, initial_state=initial_encoder_states, constants=sentence_encoder_outputs)

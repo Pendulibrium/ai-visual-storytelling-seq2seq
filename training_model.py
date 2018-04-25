@@ -53,7 +53,7 @@ model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_e
                                             word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, encoder_input_shape, decoder_input_shape,
                                             cell_type=cell_type, sentence_encoder=sentence_encoder, masking=True,
-                                            recurrent_dropout=0.0, input_dropout=0.5, include_sentence_encoder=True)
+                                            recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=True, attention=True)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
