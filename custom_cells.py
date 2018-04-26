@@ -642,7 +642,10 @@ class AttentionGRU(RNN):
     def from_config(cls, config):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
-        return cls(**config)
+        num_constants = config.pop('num_constants', None)
+        layer = cls(**config)
+        layer._num_constants = num_constants
+        return layer
 
 
 def _generate_dropout_ones(inputs, dims):
