@@ -221,7 +221,7 @@ class Inference:
 
     # TODO: we should send the reverse params
     def predict_all(self, batch_size, sentence_length=22, references_file_name='', hypotheses_file_name='',
-                    sentence_embedding=True, no_duplicates=False, beam_search=False, beam_size=3):
+                    sentence_embedding=True, no_duplicates=False, beam_search=False, beam_size=3, attention=False):
 
         data_generator = ModelDataGenerator(self.dataset_file, self.vocab_json, batch_size)
         count = 0
@@ -252,13 +252,13 @@ class Inference:
                 if sentence_embedding:
                     if i % 5 == 0:
                         encoder_sentence = encoder_batch_sentence_input_data[i]
-                        words = [self.words_to_idx["<UNK>"]]
+                        #words = [self.words_to_idx["<UNK>"]]
                     if no_duplicates:
                         decoded = self.predict_batch_with_sentence_embed(encoder_batch_input_data[i],
                                                                          encoder_sentence=encoder_sentence,
                                                                          sentence_embed_boolean=True,
                                                                          sentence_length=sentence_length, words=words,
-                                                                         no_duplicates=True)
+                                                                         no_duplicates=True, attention=attention)
                     else:
                         if beam_search:
 
@@ -270,7 +270,7 @@ class Inference:
                                                                          encoder_sentence=encoder_sentence,
                                                                          sentence_embed_boolean=True,
                                                                          sentence_length=sentence_length, words=words,
-                                                                         no_duplicates=False)
+                                                                         no_duplicates=False, attention=attention)
 
                     encoder_sentence = decoded
                     original = nlp.vec_to_sentence(original_sentences_input[i], self.idx_to_words)
@@ -336,16 +336,18 @@ class Inference:
         hypotheses_file.close()
 
     def predict_batch_with_sentence_embed(self, input_sequence, encoder_sentence, sentence_embed_boolean,
-                                          sentence_length, words, no_duplicates):
+                                          sentence_length, words, no_duplicates, attention):
 
         input_sequence = input_sequence.reshape((1, input_sequence.shape[0], input_sequence.shape[1]))
-        #print(encoder_sentence.shape)
         encoder_sentence = encoder_sentence.reshape(1,encoder_sentence.shape[0])
         num_stories = input_sequence.shape[0]
         decoded_sentences = np.zeros((sentence_length), dtype='int32')
 
         if sentence_embed_boolean:
-            states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
+            if attention:
+                sentence_encoder_outputs, states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
+            else:
+                states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
         else:
             states_value = self.encoder_model.predict(input_sequence)
 
@@ -354,6 +356,9 @@ class Inference:
         for i in range(self.num_stacked_layers - 1):
             states_value.append(np.zeros(states_value_shape))
 
+        if attention:
+            states_value.append(sentence_encoder_outputs)
+
         target_seq = np.zeros((num_stories, 1), dtype='int32')
         target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
 
@@ -361,6 +366,7 @@ class Inference:
         i = 0
 
         while not stop_condition:
+
             output = self.decoder_model.predict([target_seq] + states_value)
             output_tokens = output[0]
 
@@ -379,6 +385,9 @@ class Inference:
             target_seq[0:num_stories, 0] = sampled_word_index
 
             states_value = output[1:]
+
+            if attention:
+                states_value = states_value + list(sentence_encoder_outputs)
             i += 1
 
         return decoded_sentences
