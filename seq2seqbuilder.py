@@ -7,7 +7,7 @@ from keras.models import load_model
 from keras import layers
 import numpy as np
 import abc
-from custom_cells import AttentionGRU
+from custom_cells import AttentionGRU, LuongAttentionGRUCell
 
 
 class SentenceEncoder(object):
@@ -269,9 +269,13 @@ class Seq2SeqBuilder:
                 count += 1
         return count
 
-    def build_encoder_decoder_inference_from_file(self, model_path, sentence_encoder, include_sentence_encoder=True):
-        model = load_model(model_path)
-        return self.build_encoder_decoder_inference(model, sentence_encoder, include_sentence_encoder)
+    def build_encoder_decoder_inference_from_file(self, model_path, sentence_encoder, include_sentence_encoder=True,
+                                                  attention=False):
+        if attention:
+            model = load_model(model_path, custom_objects={'AttentionGRU': AttentionGRU})
+        else:
+            model = load_model(model_path)
+        return self.build_encoder_decoder_inference(model, sentence_encoder, include_sentence_encoder, attention)
 
     def build_encoder_decoder_inference(self, model, sentence_encoder, include_sentence_encoder=True, attention=False):
 
@@ -329,6 +333,7 @@ class Seq2SeqBuilder:
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
+        initial_encoder_states = initial_encoder_states[0]
         if attention:
             encoder_model = Model(initial_input, [sentence_encoder_outputs, initial_encoder_states])
         else:
@@ -353,10 +358,10 @@ class Seq2SeqBuilder:
             for i in range(num_decoder):
                 decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
                 decoder_states_inputs.append(Input(shape=(new_latent_dim,)))
-
-        decoder_states_inputs.append(Input(shape=(sentence_encoder_outputs.shape[1],)))
+        decoder_states_inputs.append(Input(shape=(sentence_encoder_outputs.shape[1],sentence_encoder_outputs.shape[2],)))
 
         decoder_states = []
+        decoder_outputs = embedding_outputs
         for i in range(num_decoder):
 
             decoder = model.get_layer(decoder_prefix + str(i))
@@ -364,27 +369,26 @@ class Seq2SeqBuilder:
             config = decoder.get_config()
             config['dropout'] = 0.0
             config['recurrent_dropout'] = 0.0
-            decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
 
-            if i == 0:
+            if attention:
                 if i == num_decoder - 1:
-                    decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i],
+                    decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config},
+                                                 custom_objects={'AttentionGRU': AttentionGRU})
+                    decoder_outputs = decoder(decoder_outputs, initial_state=decoder_states_inputs[i],
                                               constants=decoder_states_inputs[-1])
                 else:
-                    decoder_outputs = decoder(embedding_outputs, initial_state=decoder_states_inputs[i])
-                decoder.set_weights(weights)
-                decoder_states = decoder_states + list(decoder_outputs[1:])
+                    decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
+                    decoder_outputs = decoder(decoder_outputs, initial_state=decoder_states_inputs[i])
             else:
-                if i == num_decoder - 1:
-                    decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i],
-                                              constants=decoder_states_inputs[-1])
-                else:
-                    decoder_outputs = decoder(decoder_outputs[0], initial_state=decoder_states_inputs[i])
-                decoder.set_weights(weights)
-                decoder_states = decoder_states + list(decoder_outputs[1:])
+                decoder = layers.deserialize({'class_name': decoder.__class__.__name__, 'config': config})
+                decoder_outputs = decoder(decoder_outputs, initial_state=decoder_states_inputs[i])
+
+            decoder.set_weights(weights)
+            decoder_states = decoder_states + list(decoder_outputs[1:])
+            decoder_outputs = decoder_outputs[0]
 
         decoder_dense = model.get_layer("dense_layer")
-        decoder_outputs = decoder_dense(decoder_outputs[0])
+        decoder_outputs = decoder_dense(decoder_outputs)
         decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
 
         # return im_model, sent_model
