@@ -359,6 +359,7 @@ class Inference:
         if attention:
             states_value.append(sentence_encoder_outputs)
 
+
         target_seq = np.zeros((num_stories, 1), dtype='int32')
         target_seq[0:num_stories, 0] = self.words_to_idx["<START>"]
 
@@ -387,7 +388,7 @@ class Inference:
             states_value = output[1:]
 
             if attention:
-                states_value = states_value + list(sentence_encoder_outputs)
+                states_value.append(sentence_encoder_outputs)
             i += 1
 
         return decoded_sentences
