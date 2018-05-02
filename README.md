@@ -24,7 +24,7 @@ First we need to extract the image features from all the images and save them in
 python dataset/models/alexnet/myalexnet_forward_newtf.py
 ```
 This script create the file /dataset/models/alexnet/alexnet_image_train_features.hdf5, that contains all the image features.
-Next we need to associate every image feature vector with it's corresponding vectorized sentence.
+Next we need to associate every image feature vector with it's corresponding vectorized sentence. We vectorize the sentence using the functions in sis_datareader. With the function sentences_to_index we align every image feature with every sentence. If all the file paths are set properly, all of the above can be done by running the command 
 ```
 python data_reader/sis_datareader.py
 ```
