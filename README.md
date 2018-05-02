@@ -23,6 +23,7 @@ First we need to extract the image features from all the images and save them in
 ```
 python dataset/models/alexnet/myalexnet_forward_newtf.py
 ```
+This script create the file /dataset/models/alexnet/alexnet_image_train_features.hdf5, that contains all the image features.
 Next we need to associate every image feature vector with it's corresponding vectorized sentence.
 ```
 python data_reader/sis_datareader.py
@@ -30,6 +31,8 @@ python data_reader/sis_datareader.py
 ### Options and differences from the paper
 Other than our proposed solution, the project can be used to train an encoder-decoder and an encoder-decoder with [Luong](https://arxiv.org/pdf/1508.04025.pdf) attention mechanism.
 
+### Our proposed solution
+![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/training_arhitecture_horizontal_1.jpg)
 ### Training the model
 Training the model and adjusting the parameters is done in the training_model.py. If the attention mechanism is used, make sure that image_encoder_latent_dim = sentence_encoder_latent_dim.
 ```
