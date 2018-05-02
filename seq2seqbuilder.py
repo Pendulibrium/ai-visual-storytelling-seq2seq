@@ -324,6 +324,8 @@ class Seq2SeqBuilder:
                     encoder_states,
                     sentence_embedding_outputs,
                     attention=attention)
+                #this is just for now, because the our model only accepts only the hidden state from the image encoder
+                initial_encoder_states = encoder_states[0]
             else:
                 initial_encoder_states, new_latent_dim = sentence_encoder.get_last_layer_inference(model,
                                                                                                    encoder_states,
@@ -333,7 +335,6 @@ class Seq2SeqBuilder:
             initial_encoder_states = encoder_states
             new_latent_dim = latent_dim
 
-        initial_encoder_states = initial_encoder_states[0]
         if attention:
             encoder_model = Model(initial_input, [sentence_encoder_outputs, initial_encoder_states])
         else:
