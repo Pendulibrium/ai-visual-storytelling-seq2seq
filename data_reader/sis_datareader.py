@@ -254,6 +254,8 @@ class SIS_DataReader:
 
 
 object = SIS_DataReader()
+object.create_word_frequency_document()
+object.generate_vocabulary()
 object.sentences_to_index()
 # #
 # data_file=h5py.File('../dataset/stories_to_index.hdf5','r')

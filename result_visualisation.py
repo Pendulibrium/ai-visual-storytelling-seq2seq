@@ -345,12 +345,14 @@ class Inference:
 
         if sentence_embed_boolean:
             if attention:
-                sentence_encoder_outputs, states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
+                states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
             else:
                 states_value = self.encoder_model.predict([input_sequence, encoder_sentence])
         else:
             states_value = self.encoder_model.predict(input_sequence)
 
+        sentence_encoder_outputs = states_value[0]
+        states_value = states_value[1]
         states_value_shape = states_value.shape
         states_value = [states_value]
         for i in range(self.num_stacked_layers - 1):
@@ -389,6 +391,7 @@ class Inference:
 
             if attention:
                 states_value.append(sentence_encoder_outputs)
+
             i += 1
 
         return decoded_sentences
