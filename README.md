@@ -16,15 +16,29 @@ pip install unidecode
 python -mpip install matplotlib
 ```
 ### Data
-Download the Visual Storytelling Dataset (VIST) from http://visionandlanguage.net/VIST/dataset.html.
+Download the Visual Storytelling Dataset (VIST) from http://visionandlanguage.net/VIST/dataset.html and save it in the dataset/vist_dataset directory. Also download the pre-trained [weights](https://www.cs.toronto.edu/~guerzhoy/tf_alexnet/bvlc_alexnet.npy) for AlexnNet and put them in the dataset/models/alexnet directory. 
 
 ### Data pre-processing
-
+First we need to extract the image features from all the images and save them in a file. 
+```
+python dataset/models/alexnet/myalexnet_forward_newtf.py
+```
+Next we need to associate every image feature vector with it's corresponding vectorized sentence.
+```
+python data_reader/sis_datareader.py
+```
 ### Options and differences from the paper
 Other than our proposed solution, the project can be used to train an encoder-decoder and an encoder-decoder with [Luong](https://arxiv.org/pdf/1508.04025.pdf) attention mechanism.
 
 ### Training the model
+Training the model and adjusting the parameters is done in the training_model.py. If the attention mechanism is used, make sure that image_encoder_latent_dim = sentence_encoder_latent_dim.
+```
+python training_model.py
+```
 
 ### Generating stories
-
+To generate stories in inference_model.py set model_name to the model you want to generate from and run
+```
+python inference_model.py
+```
 ### Some Results
