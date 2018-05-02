@@ -33,6 +33,7 @@ Other than our proposed solution, the project can be used to train an encoder-de
 
 ### Our proposed solution
 ![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/training_arhitecture_horizontal_1.jpg)
+The architecture of the proposed model. The images highlighted with red are the ones that are encoded and together with the previous sentence, they influence the generated sentence in the current time step.
 ### Training the model
 Training the model and adjusting the parameters is done in the training_model.py. If the attention mechanism is used, make sure that image_encoder_latent_dim = sentence_encoder_latent_dim.
 ```
