@@ -387,7 +387,8 @@ class Inference:
             states_value = output[1:]
 
             if attention:
-                states_value = states_value + list(sentence_encoder_outputs)
+                states_value.append(sentence_encoder_outputs)
+
             i += 1
 
         return decoded_sentences
