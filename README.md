@@ -46,3 +46,8 @@ To generate stories in inference_model.py set model_name to the model you want t
 python inference_model.py
 ```
 ### Some Results
+In following images we can see the generated stories from the aforementioned models. The first row reprsents the original story, the second row is the generated story from the model with loss=0.82, the third row is the story from the model with loss=1.01 and the forth row is the story from the model with loss=1.72. 
+![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/results/images/slika1.png)
+![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/results/images/slika2.png)
+![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/results/images/slika3.png)
+![alt text](https://github.com/Pendulibrium/ai-visual-storytelling-seq2seq/blob/master/results/images/slika4.png)
