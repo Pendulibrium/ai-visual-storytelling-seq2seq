@@ -162,6 +162,13 @@ class LuongAttentionGRUCell(Layer):
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
 
+        self.W_a = self.add_weight(
+            shape=(self.units, self.units),
+            name='W_a',
+            initializer=self.kernel_initializer,
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint)
+
         if self.use_bias:
             if not self.reset_after:
                 bias_shape = (3 * self.units,)
@@ -329,12 +336,23 @@ class LuongAttentionGRUCell(Layer):
         # previous and candidate state mixed by update gate
         h = z * h_tm1 + (1 - z) * hh
 
-        # h has shape (batch_size, units)
-        # for the math to work we need h to have shape (batch_size, 1, units)
-        h = tf.expand_dims(h, 1)
         # we computer the score as a dot product between the source hidden states and the target hidden state
         # possible score functions: ht*hs, ht*Wa*hs, Va*tanh(Wa([ht;hs]))
-        scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
+
+        ## This is ht*hs
+        # h has shape (batch_size, units)
+        # for the math to work we need h to have shape (batch_size, 1, units)
+        # h = tf.expand_dims(h, 1)
+        #scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
+        print(h.shape)
+        print(self.W_a.shape)
+        scores = tf.matmul(h, self.W_a)
+        print(scores.shape)
+        scores = tf.expand_dims(scores, 1)
+        print("Score", scores.shape)
+        print("Exter", external_outputs.shape)
+        scores = tf.reduce_sum(tf.multiply(external_outputs,scores), axis=2)
+        print(scores.shape)
         # calculating attention from scores using softmax - this is essentially a weighted average
         a_t = tf.nn.softmax(scores)
         # a_t has dimensions (batch_size, timesteps), we need to expand it to (batch_size, timesteps, 1)
@@ -343,7 +361,7 @@ class LuongAttentionGRUCell(Layer):
         c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
         # transormation from (batch_size, units, 1) to (batch_size, units)
         c_t = tf.squeeze(c_t, [2])
-        h = tf.squeeze(h, [1])
+        #h = tf.squeeze(h, [1])
         # combining the target hidden state with the context vector
         # and putting them through a layer with learnable parametars
         h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
@@ -354,7 +372,12 @@ class LuongAttentionGRUCell(Layer):
                 h._uses_learning_phase = True
 
         return h, [h]
-
+    def simple_context_score(self):
+        return
+    def luong_contex_score(self):
+        return
+    def bengio_contex_score(self):
+        return
     def get_config(self):
         config = {'units': self.units,
                   'activation': activations.serialize(self.activation),
