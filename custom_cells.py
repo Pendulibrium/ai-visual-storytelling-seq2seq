@@ -162,9 +162,18 @@ class LuongAttentionGRUCell(Layer):
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
 
+        # Used for bahdanau and luong context score
         self.W_a = self.add_weight(
-            shape=(self.units, self.units),
+            shape=(self.units, self.units * 2),
             name='W_a',
+            initializer=self.kernel_initializer,
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint)
+
+        #Only used for bahdanau context score
+        self.V_a = self.add_weight(
+            shape=(self.units, 1),
+            name='V_a',
             initializer=self.kernel_initializer,
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
@@ -338,21 +347,19 @@ class LuongAttentionGRUCell(Layer):
 
         # we computer the score as a dot product between the source hidden states and the target hidden state
         # possible score functions: ht*hs, ht*Wa*hs, Va*tanh(Wa([ht;hs]))
+        h = self.bahdanau_context_score(h, external_outputs)
 
+        if 0 < self.dropout + self.recurrent_dropout:
+            if training is None:
+                h._uses_learning_phase = True
+
+        return h, [h]
+    def simple_context_score(self, h, external_outputs):
         ## This is ht*hs
         # h has shape (batch_size, units)
         # for the math to work we need h to have shape (batch_size, 1, units)
-        # h = tf.expand_dims(h, 1)
-        #scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
-        print(h.shape)
-        print(self.W_a.shape)
-        scores = tf.matmul(h, self.W_a)
-        print(scores.shape)
-        scores = tf.expand_dims(scores, 1)
-        print("Score", scores.shape)
-        print("Exter", external_outputs.shape)
-        scores = tf.reduce_sum(tf.multiply(external_outputs,scores), axis=2)
-        print(scores.shape)
+        h = tf.expand_dims(h, 1)
+        scores = tf.reduce_sum(tf.multiply(external_outputs, h), axis=2)
         # calculating attention from scores using softmax - this is essentially a weighted average
         a_t = tf.nn.softmax(scores)
         # a_t has dimensions (batch_size, timesteps), we need to expand it to (batch_size, timesteps, 1)
@@ -361,23 +368,49 @@ class LuongAttentionGRUCell(Layer):
         c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
         # transormation from (batch_size, units, 1) to (batch_size, units)
         c_t = tf.squeeze(c_t, [2])
-        #h = tf.squeeze(h, [1])
+        h = tf.squeeze(h, [1])
         # combining the target hidden state with the context vector
         # and putting them through a layer with learnable parametars
         h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
-        h = h_tld
 
-        if 0 < self.dropout + self.recurrent_dropout:
-            if training is None:
-                h._uses_learning_phase = True
+        return h_tld
+    def luong_context_score(self, h, external_outputs):
+        # calculating the scores function as ht*Wa*hs
+        scores = tf.matmul(h, self.W_a)
+        scores = tf.expand_dims(scores, 1)
+        scores = tf.reduce_sum(tf.multiply(external_outputs, scores), axis=2)
+        # calculating attention from scores using softmax - this is essentially a weighted average
+        a_t = tf.nn.softmax(scores)
+        # a_t has dimensions (batch_size, timesteps), we need to expand it to (batch_size, timesteps, 1)
+        a_t = tf.expand_dims(a_t, 2)
+        # the context vector is computed as a weighted average over all the source hidden states
+        c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
+        # transormation from (batch_size, units, 1) to (batch_size, units)
+        c_t = tf.squeeze(c_t, [2])
+        # h = tf.squeeze(h, [1])
+        # combining the target hidden state with the context vector
+        # and putting them through a layer with learnable parametars
+        h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
+        return h_tld
+    def bahdanau_context_score(self,h, external_outputs):
+        # calculating the scores function as ht*Wa*hs
 
-        return h, [h]
-    def simple_context_score(self):
-        return
-    def luong_contex_score(self):
-        return
-    def bengio_contex_score(self):
-        return
+        h_repeat = K.repeat(h, 22)
+        scores = K.dot(tf.tanh(K.dot(tf.concat([h_repeat, external_outputs], 2), tf.transpose(self.W_a))), self.V_a)
+        scores = tf.squeeze(scores, [2])
+        # calculating attention from scores using softmax - this is essentially a weighted average
+        a_t = tf.nn.softmax(scores)
+        # a_t has dimensions (batch_size, timesteps), we need to expand it to (batch_size, timesteps, 1)
+        a_t = tf.expand_dims(a_t, 2)
+        # the context vector is computed as a weighted average over all the source hidden states
+        c_t = tf.matmul(tf.transpose(external_outputs, perm=[0, 2, 1]), a_t)
+        # transormation from (batch_size, units, 1) to (batch_size, units)
+        c_t = tf.squeeze(c_t, [2])
+        # combining the target hidden state with the context vector
+        # and putting them through a layer with learnable parametars
+        h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
+        return h_tld
+
     def get_config(self):
         config = {'units': self.units,
                   'activation': activations.serialize(self.activation),
