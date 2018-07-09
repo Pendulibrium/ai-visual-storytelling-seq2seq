@@ -16,6 +16,7 @@ from keras.layers import RNN, Input, GRU, Dense
 # Legacy support.
 from keras.legacy import interfaces
 
+
 class BahdanauAttentionGRUCell(Layer):
     """Cell class for the GRU layer.
 
@@ -215,7 +216,7 @@ class BahdanauAttentionGRUCell(Layer):
 
     def call(self, inputs, states, training=None, constants=None):
         h_tm1 = states[0]  # previous memory
-        external_outputs = constants[0] # outputs from the encoder, used for attention
+        external_outputs = constants[0]  # outputs from the encoder, used for attention
 
         h_repeat = K.repeat(h_tm1, 22)
         scores = K.dot(tf.tanh(K.dot(tf.concat([h_repeat, external_outputs], 2), tf.transpose(self.W_a))), self.V_a)
@@ -365,6 +366,8 @@ class BahdanauAttentionGRUCell(Layer):
                   'reset_after': self.reset_after}
         base_config = super(BahdanauAttentionGRUCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
 class LuongAttentionGRUCell(Layer):
     """Cell class for the GRU layer.
 
@@ -511,20 +514,21 @@ class LuongAttentionGRUCell(Layer):
             constraint=self.kernel_constraint)
 
         # Used for bahdanau and luong context score
+        # When using bahdanau score W_a shape needs to be changed to (self.units, self.units * 2)
         self.W_a = self.add_weight(
-            shape=(self.units, self.units * 2),
+            shape=(self.units, 1),
             name='W_a',
             initializer=self.kernel_initializer,
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
 
-        #Only used for bahdanau context score
-        self.V_a = self.add_weight(
-            shape=(self.units, 1),
-            name='V_a',
-            initializer=self.kernel_initializer,
-            regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint)
+        # # Only used for bahdanau context score
+        # self.V_a = self.add_weight(
+        #     shape=(self.units, 1),
+        #     name='V_a',
+        #     initializer=self.kernel_initializer,
+        #     regularizer=self.kernel_regularizer,
+        #     constraint=self.kernel_constraint)
 
         if self.use_bias:
             if not self.reset_after:
@@ -583,7 +587,7 @@ class LuongAttentionGRUCell(Layer):
 
     def call(self, inputs, states, training=None, constants=None):
         h_tm1 = states[0]  # previous memory
-        external_outputs = constants[0] # outputs from the encoder, used for attention
+        external_outputs = constants[0]  # outputs from the encoder, used for attention
 
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
@@ -695,13 +699,14 @@ class LuongAttentionGRUCell(Layer):
 
         # we computer the score as a dot product between the source hidden states and the target hidden state
         # possible score functions: ht*hs, ht*Wa*hs, Va*tanh(Wa([ht;hs]))
-        h = self.bahdanau_context_score(h, external_outputs)
+        h = self.luong_context_score(h, external_outputs)
 
         if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
                 h._uses_learning_phase = True
 
         return h, [h]
+
     def simple_context_score(self, h, external_outputs):
         ## This is ht*hs
         # h has shape (batch_size, units)
@@ -722,6 +727,7 @@ class LuongAttentionGRUCell(Layer):
         h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
 
         return h_tld
+
     def luong_context_score(self, h, external_outputs):
         # calculating the scores function as ht*Wa*hs
         scores = tf.matmul(h, self.W_a)
@@ -740,7 +746,8 @@ class LuongAttentionGRUCell(Layer):
         # and putting them through a layer with learnable parametars
         h_tld = tf.tanh(tf.matmul(tf.concat([h, c_t], 1), self.W_c) + self.b_c)
         return h_tld
-    def bahdanau_context_score(self,h, external_outputs):
+
+    def bahdanau_context_score(self, h, external_outputs):
         # calculating the scores function as ht*Wa*hs
 
         h_repeat = K.repeat(h, 22)
@@ -779,6 +786,7 @@ class LuongAttentionGRUCell(Layer):
                   'reset_after': self.reset_after}
         base_config = super(LuongAttentionGRUCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 class AttentionGRU(RNN):
     """Gated Recurrent Unit - Cho et al. 2014.
@@ -911,30 +919,30 @@ class AttentionGRU(RNN):
             dropout = 0.
             recurrent_dropout = 0.
 
-        cell = BahdanauAttentionGRUCell(units,
-                          activation=activation,
-                          recurrent_activation=recurrent_activation,
-                          use_bias=use_bias,
-                          kernel_initializer=kernel_initializer,
-                          recurrent_initializer=recurrent_initializer,
-                          bias_initializer=bias_initializer,
-                          kernel_regularizer=kernel_regularizer,
-                          recurrent_regularizer=recurrent_regularizer,
-                          bias_regularizer=bias_regularizer,
-                          kernel_constraint=kernel_constraint,
-                          recurrent_constraint=recurrent_constraint,
-                          bias_constraint=bias_constraint,
-                          dropout=dropout,
-                          recurrent_dropout=recurrent_dropout,
-                          implementation=implementation,
-                          reset_after=reset_after)
+        cell = LuongAttentionGRUCell(units,
+                                        activation=activation,
+                                        recurrent_activation=recurrent_activation,
+                                        use_bias=use_bias,
+                                        kernel_initializer=kernel_initializer,
+                                        recurrent_initializer=recurrent_initializer,
+                                        bias_initializer=bias_initializer,
+                                        kernel_regularizer=kernel_regularizer,
+                                        recurrent_regularizer=recurrent_regularizer,
+                                        bias_regularizer=bias_regularizer,
+                                        kernel_constraint=kernel_constraint,
+                                        recurrent_constraint=recurrent_constraint,
+                                        bias_constraint=bias_constraint,
+                                        dropout=dropout,
+                                        recurrent_dropout=recurrent_dropout,
+                                        implementation=implementation,
+                                        reset_after=reset_after)
         super(AttentionGRU, self).__init__(cell,
-                                     return_sequences=return_sequences,
-                                     return_state=return_state,
-                                     go_backwards=go_backwards,
-                                     stateful=stateful,
-                                     unroll=unroll,
-                                     **kwargs)
+                                           return_sequences=return_sequences,
+                                           return_state=return_state,
+                                           go_backwards=go_backwards,
+                                           stateful=stateful,
+                                           unroll=unroll,
+                                           **kwargs)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self,
@@ -946,10 +954,10 @@ class AttentionGRU(RNN):
         self.cell._dropout_mask = None
         self.cell._recurrent_dropout_mask = None
         return super(AttentionGRU, self).call(inputs,
-                                        mask=mask,
-                                        training=training,
-                                        initial_state=initial_state,
-                                        constants=constants)
+                                              mask=mask,
+                                              training=training,
+                                              initial_state=initial_state,
+                                              constants=constants)
 
     @property
     def units(self):
