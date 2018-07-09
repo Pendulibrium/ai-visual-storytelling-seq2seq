@@ -1,0 +1,6 @@
+50 epochs
+recurrent_dropout = 0.3
+dropout = 0.3
+include_sentence_encoder = True
+k = 3
+loss =  0.49060113870285615
