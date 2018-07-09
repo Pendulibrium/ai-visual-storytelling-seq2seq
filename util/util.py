@@ -12,7 +12,7 @@ def sentences_to_story(open_file_path, save_file_path, num_sentences=5):
         for line in fp:
             line = line.replace("\n", "")
             story = story + line + " "
-            if i % 5 == 0:
+            if i % num_sentences == 0:
                 stories.append(story)
                 story = ""
             i += 1
