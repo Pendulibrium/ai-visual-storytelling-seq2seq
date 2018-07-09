@@ -21,9 +21,9 @@ valid_generator = ModelDataGenerator(valid_dataset, vocab_json, 64)
 words_to_idx = vocab_json['words_to_idx']
 
 batch_size = 13
-epochs = 25  # Number of epochs to train for.
-image_encoder_latent_dim = 512  # Latent dimensionality of the encoding space.
-sentence_encoder_latent_dim = 512
+epochs = 50  # Number of epochs to train for.
+image_encoder_latent_dim = 1024  # Latent dimensionality of the encoding space.
+sentence_encoder_latent_dim = 1024
 
 word_embedding_size = 300  # Size of the word embedding space.
 num_of_stacked_rnn = 2  # Number of Stacked RNN layers
@@ -41,19 +41,21 @@ print("num samples: ", num_samples)
 print("train steps: ", train_steps)
 
 start_time = time.time()
-start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-%d_%H:%M:%S')
+start_time_string = datetime.datetime.fromtimestamp(start_time).strftime('%Y-%m-%d_%H-%M-%S')
 
 # Build model
 encoder_input_shape = (None, 4096)
 decoder_input_shape = (22,)
 builder = Seq2SeqBuilder()
-#sentence_encoder = SentenceEncoderCNN(decoder_input_shape=decoder_input_shape)
-sentence_encoder = SentenceEncoderRNN(cell_type=cell_type, sentence_encoder_latent_dim=sentence_encoder_latent_dim, recurrent_dropout=0.0)
+# sentence_encoder = SentenceEncoderCNN(decoder_input_shape=decoder_input_shape)
+sentence_encoder = SentenceEncoderRNN(cell_type=cell_type, sentence_encoder_latent_dim=sentence_encoder_latent_dim,
+                                      recurrent_dropout=0.0)
 model = builder.build_encoder_decoder_model(image_encoder_latent_dim, sentence_encoder_latent_dim, words_to_idx,
                                             word_embedding_size, num_decoder_tokens,
                                             num_of_stacked_rnn, encoder_input_shape, decoder_input_shape,
                                             cell_type=cell_type, sentence_encoder=sentence_encoder, masking=True,
-                                            recurrent_dropout=0.0, input_dropout=0.0, include_sentence_encoder=True, attention=True)
+                                            recurrent_dropout=0.0, input_dropout=0.35, include_sentence_encoder=True,
+                                            attention=True)
 
 optimizer = Adam(lr=learning_rate, clipvalue=gradient_clip_value)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy')
@@ -76,10 +78,13 @@ nlpScores = NLPScores('valid')
 hist = model.fit_generator(
     train_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k,
                                                          sentence_embedding=True),
-    steps_per_epoch=train_steps, epochs=epochs, callbacks=[checkpointer, csv_logger])
+    steps_per_epoch=train_steps, epochs=epochs, callbacks=[checkpointer, csv_logger],
+    validation_data=valid_generator.multiple_samples_per_story_generator(reverse=reverse, shuffle=True, last_k=last_k,
+                                                                         sentence_embedding=True),
+    validation_steps=valid_steps)
 
 end_time = time.time()
-end_time_string = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d_%H:%M:%S')
+end_time_string = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d_%H-%M-%S')
 
 model_filename = './trained_models/' + str(start_time_string) + "-" + str(end_time_string) + '.h5'
 model.save(model_filename)
