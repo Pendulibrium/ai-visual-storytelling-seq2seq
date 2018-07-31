@@ -102,11 +102,15 @@ class SIS_DataReader:
                            max_length=20):
 
         vocabulary = json.load(open(vocabulary_file))
-        words_to_idx = vocabulary["words_to_idx"]
+        self.words_to_idx = vocabulary["words_to_idx"]
+        self.max_length = max_length
 
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
 
+        self.description_data = json.load(
+            open('../dataset/vist_dataset/training_data/dii/train.description-in-isolation.json'))
+        print("desc data " + str(len(annotations)))
         img_hash = self.get_image_features_hash(image_embedding_file)
 
         images_path_names = [y for x in os.walk(images_directory) for y in glob(os.path.join(x[0], "*.jpg"))]
@@ -117,6 +121,7 @@ class SIS_DataReader:
         story_sentences = []
         story_images = []
         story_images_ids = []
+        story_descriptions = []
         story_images_paths = []
 
         for i in range(0, len(annotations), 5):
@@ -135,9 +140,9 @@ class SIS_DataReader:
                 "worker_arranged_photo_order"]
 
             if not (img_hash.has_key(str(img_id1))):
-                image1=np.zeros(4096)
+                image1 = np.zeros(4096)
             else:
-                image1=img_hash[str(img_id1)]
+                image1 = img_hash[str(img_id1)]
 
             if not (img_hash.has_key(str(img_id2))):
                 image2 = np.zeros(4096)
@@ -159,11 +164,11 @@ class SIS_DataReader:
             else:
                 image5 = img_hash[str(img_id5)]
 
-            story1 = self.sentences_to_index_helper(annotations[i][0]["text"], words_to_idx, max_length)
-            story2 = self.sentences_to_index_helper(annotations[i + 1][0]["text"], words_to_idx, max_length)
-            story3 = self.sentences_to_index_helper(annotations[i + 2][0]["text"], words_to_idx, max_length)
-            story4 = self.sentences_to_index_helper(annotations[i + 3][0]["text"], words_to_idx, max_length)
-            story5 = self.sentences_to_index_helper(annotations[i + 4][0]["text"], words_to_idx, max_length)
+            story1 = self.sentences_to_index_helper(annotations[i][0]["text"], self.words_to_idx, max_length)
+            story2 = self.sentences_to_index_helper(annotations[i + 1][0]["text"], self.words_to_idx, max_length)
+            story3 = self.sentences_to_index_helper(annotations[i + 2][0]["text"], self.words_to_idx, max_length)
+            story4 = self.sentences_to_index_helper(annotations[i + 3][0]["text"], self.words_to_idx, max_length)
+            story5 = self.sentences_to_index_helper(annotations[i + 4][0]["text"], self.words_to_idx, max_length)
 
             order1 = annotations[i][0]["worker_arranged_photo_order"]
             order2 = annotations[i + 1][0]["worker_arranged_photo_order"]
@@ -174,7 +179,7 @@ class SIS_DataReader:
             story_list = [(story1, order1), (story2, order2), (story3, order3), (story4, order4), (story5, order5)]
             story_list = sorted(story_list, key=operator.itemgetter(1))
 
-            image_list = [(image1, order1), (image2, order2), (image3, order3),(image4, order4), (image5, order5)]
+            image_list = [(image1, order1), (image2, order2), (image3, order3), (image4, order4), (image5, order5)]
             image_list = sorted(image_list, key=operator.itemgetter(1))
 
             ordered_stories = [story_list[0][0], story_list[1][0], story_list[2][0], story_list[3][0], story_list[4][0]]
@@ -196,18 +201,44 @@ class SIS_DataReader:
                 else:
                     ordered_image_path_names.append("None")
 
+            ordered_descriptions = self.descriptions_to_index(ordered_image_ids)
             story_ids.append(int(story_id))
             story_sentences.append(ordered_stories)
             story_images.append(ordered_images)
             story_images_ids.append(ordered_image_ids)
-            story_images_paths.append(ordered_image_path_names)
+            story_descriptions.append(ordered_descriptions)
+            # story_images_paths.append(ordered_image_path_names)
+            break
 
-        data_file = h5py.File(save_file_path, 'w')
-        data_file.create_dataset("story_ids", data = story_ids)
-        data_file.create_dataset("story_sentences", data = story_sentences)
-        data_file.create_dataset("image_embeddings", data = story_images)
-        data_file.create_dataset("image_ids", data = story_images_ids)
-        data_file.create_dataset("image_paths", data = story_images_paths)
+        # data_file = h5py.File(save_file_path, 'w')
+        # data_file.create_dataset("story_ids", data=story_ids)
+        # data_file.create_dataset("story_sentences", data=story_sentences)
+        # data_file.create_dataset("image_embeddings", data=story_images)
+        # data_file.create_dataset("image_ids", data=story_images_ids)
+        # data_file.create_dataset("descriptions", data=story_descriptions)
+        # data_file.create_dataset("image_paths", data = story_images_paths)
+
+    def descriptions_to_index(self, indices):
+        descriptions = []
+        annotations = self.description_data['annotations']
+        j = 0
+        print indices
+        print len(annotations)
+        while j < len(indices):
+            for i in range(len(annotations)):
+                #print "i am rolling"
+                if int(annotations[i][0]['photo_flickr_id']) == indices[j]:
+                    j = j + 1
+                    print j
+                    print annotations[i][0]["text"]
+                    print "here"
+                    descriptions.append(
+                        self.sentences_to_index_helper(annotations[i][0]["text"], self.words_to_idx, self.max_length))
+                    print "over"
+                    break
+
+        print len(descriptions)
+        return descriptions
 
     def sentences_to_index_helper(self, sentence, word_to_idx, max_length):
         words = sentence.split()
@@ -234,28 +265,28 @@ class SIS_DataReader:
 
         result_sentence = ""
         for word in sentence:
-            if word == 0 :
+            if word == 0:
                 result_sentence = result_sentence + " " + idx_to_word[word]
 
         print(result_sentence)
         return result_sentence
 
-    def get_image_features_hash(self,file_name):
+    def get_image_features_hash(self, file_name):
 
         image_features_file = h5py.File(file_name, 'r')
         image_features_ids = image_features_file["image_ids"]
         image_embeddings = image_features_file["embeddings"]
         dictionary = {}
 
-        for id, em in zip(image_features_ids,image_embeddings):
+        for id, em in zip(image_features_ids, image_embeddings):
             dictionary[str(id)] = em
 
         return dictionary
 
 
 object = SIS_DataReader()
-object.create_word_frequency_document()
-object.generate_vocabulary()
+# object.create_word_frequency_document()
+# object.generate_vocabulary()
 object.sentences_to_index()
 # #
 # data_file=h5py.File('../dataset/stories_to_index.hdf5','r')
