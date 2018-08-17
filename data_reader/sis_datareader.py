@@ -108,9 +108,7 @@ class SIS_DataReader:
         data = json.load(open(self.path_to_file))
         annotations = data["annotations"]
 
-        self.description_data = json.load(
-            open('../dataset/vist_dataset/training_data/dii/train.description-in-isolation.json'))
-        print("desc data " + str(len(annotations)))
+        descriptions = self.descriptions_to_index()
         img_hash = self.get_image_features_hash(image_embedding_file)
 
         images_path_names = [y for x in os.walk(images_directory) for y in glob(os.path.join(x[0], "*.jpg"))]
@@ -126,6 +124,15 @@ class SIS_DataReader:
 
         for i in range(0, len(annotations), 5):
 
+            var = (int(annotations[i][0]['photo_flickr_id']) in descriptions.keys()) and (
+                    int(annotations[i + 1][0]['photo_flickr_id']) in descriptions.keys()) and (
+                          int(annotations[i + 2][0]['photo_flickr_id']) in descriptions.keys()) and (
+                          int(annotations[i + 3][0]['photo_flickr_id']) in descriptions.keys()) and (
+                          int(annotations[i + 4][0]['photo_flickr_id']) in descriptions.keys())
+
+            if not var:
+                continue
+
             story_id = annotations[i][0]["story_id"]
 
             img_id1, order1 = int(annotations[i][0]["photo_flickr_id"]), annotations[i][0][
@@ -139,28 +146,28 @@ class SIS_DataReader:
             img_id5, order5 = int(annotations[i + 4][0]["photo_flickr_id"]), annotations[i + 4][0][
                 "worker_arranged_photo_order"]
 
-            if not (img_hash.has_key(str(img_id1))):
-                image1 = np.zeros(4096)
+            if not (str(img_id1) in img_hash):
+                continue
             else:
                 image1 = img_hash[str(img_id1)]
 
-            if not (img_hash.has_key(str(img_id2))):
-                image2 = np.zeros(4096)
+            if not (str(img_id2) in img_hash):
+                continue
             else:
                 image2 = img_hash[str(img_id2)]
 
-            if not (img_hash.has_key(str(img_id3))):
-                image3 = np.zeros(4096)
+            if not (str(img_id3) in img_hash):
+                continue
             else:
                 image3 = img_hash[str(img_id3)]
 
-            if not (img_hash.has_key(str(img_id4))):
-                image4 = np.zeros(4096)
+            if not (str(img_id4) in img_hash):
+                continue
             else:
                 image4 = img_hash[str(img_id4)]
 
-            if not (img_hash.has_key(str(img_id5))):
-                image5 = np.zeros(4096)
+            if not (str(img_id5) in img_hash):
+                continue
             else:
                 image5 = img_hash[str(img_id5)]
 
@@ -169,6 +176,12 @@ class SIS_DataReader:
             story3 = self.sentences_to_index_helper(annotations[i + 2][0]["text"], self.words_to_idx, max_length)
             story4 = self.sentences_to_index_helper(annotations[i + 3][0]["text"], self.words_to_idx, max_length)
             story5 = self.sentences_to_index_helper(annotations[i + 4][0]["text"], self.words_to_idx, max_length)
+
+            description1 = descriptions[int(annotations[i][0]['photo_flickr_id'])]
+            description2 = descriptions[int(annotations[i + 1][0]['photo_flickr_id'])]
+            description3 = descriptions[int(annotations[i + 2][0]['photo_flickr_id'])]
+            description4 = descriptions[int(annotations[i + 3][0]['photo_flickr_id'])]
+            description5 = descriptions[int(annotations[i + 4][0]['photo_flickr_id'])]
 
             order1 = annotations[i][0]["worker_arranged_photo_order"]
             order2 = annotations[i + 1][0]["worker_arranged_photo_order"]
@@ -186,6 +199,8 @@ class SIS_DataReader:
             ordered_images = [image_list[0][0], image_list[1][0], image_list[2][0], image_list[3][0], image_list[4][0]]
             ordered_image_ids = [img_id1, img_id2, img_id3, img_id4, img_id5]
 
+            ordered_descriptions = [description1, description2, description3, description4, description5]
+
             ordered_image_path_names = []
             for file_idx in range(len(images_path_names)):
                 if images_path_names[file_idx].find(str(img_id1)):
@@ -201,44 +216,33 @@ class SIS_DataReader:
                 else:
                     ordered_image_path_names.append("None")
 
-            ordered_descriptions = self.descriptions_to_index(ordered_image_ids)
             story_ids.append(int(story_id))
             story_sentences.append(ordered_stories)
             story_images.append(ordered_images)
             story_images_ids.append(ordered_image_ids)
             story_descriptions.append(ordered_descriptions)
             # story_images_paths.append(ordered_image_path_names)
-            break
 
-        # data_file = h5py.File(save_file_path, 'w')
-        # data_file.create_dataset("story_ids", data=story_ids)
-        # data_file.create_dataset("story_sentences", data=story_sentences)
-        # data_file.create_dataset("image_embeddings", data=story_images)
-        # data_file.create_dataset("image_ids", data=story_images_ids)
-        # data_file.create_dataset("descriptions", data=story_descriptions)
-        # data_file.create_dataset("image_paths", data = story_images_paths)
+        data_file = h5py.File(save_file_path, 'w')
+        data_file.create_dataset("story_ids", data=story_ids)
+        data_file.create_dataset("story_sentences", data=story_sentences)
+        data_file.create_dataset("image_embeddings", data=story_images)
+        data_file.create_dataset("image_ids", data=story_images_ids)
+        data_file.create_dataset("descriptions", data=story_descriptions)
+        data_file.create_dataset("image_paths", data = story_images_paths)
 
-    def descriptions_to_index(self, indices):
-        descriptions = []
-        annotations = self.description_data['annotations']
-        j = 0
-        print indices
-        print len(annotations)
-        while j < len(indices):
-            for i in range(len(annotations)):
-                #print "i am rolling"
-                if int(annotations[i][0]['photo_flickr_id']) == indices[j]:
-                    j = j + 1
-                    print j
-                    print annotations[i][0]["text"]
-                    print "here"
-                    descriptions.append(
-                        self.sentences_to_index_helper(annotations[i][0]["text"], self.words_to_idx, self.max_length))
-                    print "over"
-                    break
+    def descriptions_to_index(self):
+        description_data = json.load(
+            open('../dataset/vist_dataset/training_data/dii/train.description-in-isolation.json'))['annotations']
 
-        print len(descriptions)
-        return descriptions
+        description_to_index = {}
+        for i in range(len(description_data)):
+            photo_id = int(description_data[i][0]['photo_flickr_id'])
+            if photo_id not in description_to_index.keys():
+                description_to_index[photo_id] = self.sentences_to_index_helper(description_data[i][0]['text'],
+                                                                                self.words_to_idx, 20)
+
+        return description_to_index
 
     def sentences_to_index_helper(self, sentence, word_to_idx, max_length):
         words = sentence.split()
@@ -248,7 +252,7 @@ class SIS_DataReader:
             if len(result_sentence) == max_length:
                 break
             else:
-                if (word_to_idx.has_key(word)):
+                if word in word_to_idx:
                     result_sentence.append(word_to_idx[word])
                 else:
                     result_sentence.append(word_to_idx["<UNK>"])
